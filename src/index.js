@@ -2,13 +2,27 @@
 // Set up Express server: https://levelup.gitconnected.com/set-up-and-run-a-simple-node-server-project-38b403a3dc09
 // Docker stuff: https://www.youtube.com/watch?v=gAkwW2tuIqE
 // Parse JSON request body: https://stackoverflow.com/questions/9177049/express-js-req-body-undefined
-// AXIOS requests: https://axios-http.com/docs/req_config
+// AXIOS + timeouts: https://medium.com/@masnun/handling-timeout-in-axios-479269d83c68
 
 const express = require('express');
 const app = express();
 
+// Middleware--
+
+// Use method override header to support GET/DELETE requests with bodies.
+app.use(function(req, res, next) {
+    // If we find a method override header, replace our req.method with that value
+    if (req.headers['x-http-method-override']) {
+      req.method = req.headers['x-http-method-override'];
+    //   console.log(req.method);
+    }
+    next();
+})
+
 const body_parser = require('body-parser');
-const json_parser = body_parser.json();
+app.use(body_parser.json());
+
+// End middleware--
 
 const axios = require('axios');
 
@@ -21,7 +35,7 @@ if (!forwarding_address) {
     const hash_map = new Map();
 
     // PUT endpoint
-    app.put('/kvs', json_parser, (req, res) => {
+    app.put('/kvs', (req, res) => {
 
         // if key or val wasn't included in the body, send error
         if (!req.body.hasOwnProperty('key') || !req.body.hasOwnProperty('val')) {
@@ -55,15 +69,15 @@ if (!forwarding_address) {
     });
 
     // GET endpoint
-    app.get('/kvs', json_parser, (req, res) => {
+    app.get('/kvs', (req, res) => {
 
         // if key wasn't included in the body, send error
-        if (!req.query.hasOwnProperty('key')) {
+        if (!req.body.hasOwnProperty('key')) {
             res.status(400).json({"error": "bad GET"});
             return;
         } 
 
-        let { key } = req.query;
+        let { key } = req.body;
         // if hash map doesn't have the key, send not found error
         if (!hash_map.has(key)) {
             res.status(404).json({"error": "not found"});
@@ -78,15 +92,15 @@ if (!forwarding_address) {
     });
 
     // DELETE endpoint
-    app.delete('/kvs', json_parser, (req, res) => {
+    app.delete('/kvs', (req, res) => {
 
         // if key wasn't included in the body, send error
-        if (!req.query.hasOwnProperty('key')) {
+        if (!req.body.hasOwnProperty('key')) {
             res.status(400).json({"error": "bad DELETE"});
             return;
         } 
 
-        let { key } = req.query;
+        let { key } = req.body;
         // if hash map doesn't have the key, send not found error
         if (!hash_map.has(key)) {
             res.status(404).json({"error": "not found"});
@@ -110,7 +124,7 @@ else {
     const timeout_ms = 10000;
 
     // PUT endpoint
-    app.put('/kvs', json_parser, (req, res) => {
+    app.put('/kvs', (req, res) => {
 
         // forward PUT request to upstream with 10 second timeout
         axios({
@@ -136,17 +150,18 @@ else {
                 }
             })
 
-    });
+    })
 
     // GET endpoint
-    app.get('/kvs', json_parser, (req, res) => {
+    app.get('/kvs', (req, res) => {
 
-        // // forward GET request to upstream with 10 second timeout
+        // forward PUT request to upstream with 10 second timeout
         axios({
-            method: 'get',
             url: URL,
-            params: req.query,
-            timeout: timeout_ms
+            method: 'put',
+            data: req.body,
+            timeout: timeout_ms,
+            headers: {'X-HTTP-Method-Override': 'GET'}
         })
             // if we got a response from upstream, forward that response to our own requester
             .then((upstream_res) => {
@@ -168,17 +183,18 @@ else {
     });
 
     // DELETE endpoint
-    app.delete('/kvs', json_parser, (req, res) => {
+    app.delete('/kvs', (req, res) => {
 
-        // forward DELETE request to upstream with 10 second timeout
+        // forward PUT request to upstream with 10 second timeout
         axios({
             url: URL,
-            method: 'delete',
-            params: req.query,
-            timeout: timeout_ms
+            method: 'put',
+            data: req.body,
+            timeout: timeout_ms,
+            headers: {'X-HTTP-Method-Override': 'DELETE'}
         })
             // if we got a response from upstream, forward that response to our own requester
-            .then(upstream_res => {
+            .then((upstream_res) => {
                 res.status(upstream_res.status).json(upstream_res.data);
             })
             .catch(err => {
