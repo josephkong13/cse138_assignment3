@@ -2,7 +2,7 @@
 // Set up Express server: https://levelup.gitconnected.com/set-up-and-run-a-simple-node-server-project-38b403a3dc09
 // Docker stuff: https://www.youtube.com/watch?v=gAkwW2tuIqE
 // Parse JSON request body: https://stackoverflow.com/questions/9177049/express-js-req-body-undefined
-// AXIOS + timeouts: https://medium.com/@masnun/handling-timeout-in-axios-479269d83c68
+// AXIOS requests: https://axios-http.com/docs/req_config
 
 const express = require('express');
 const app = express();
@@ -26,195 +26,176 @@ app.use(body_parser.json());
 
 const axios = require('axios');
 
-const port = process.env.PORT || 13800;
+const full_address = process.env.ADDRESS || '0.0.0.0:13800';
 
-const forwarding_address = process.env.FORWARDING_ADDRESS;
+const address_split = address.split(':');
 
-// endpoints for main instance (when there is no forwarding address)
-if (!forwarding_address) {
-    const hash_map = new Map();
-
-    // PUT endpoint
-    app.put('/kvs', (req, res) => {
-
-        // if key or val wasn't included in the body, send error
-        if (!req.body.hasOwnProperty('key') || !req.body.hasOwnProperty('val')) {
-            res.status(400).json({"error": "bad PUT"});
-            return;
-        } 
-
-        let { key, val } = req.body;
-        // if key or val is too long, send error
-        if (key.length > 200 || val.length > 200) {       
-            res.status(400).json({"error": "key or val too long"});
-            return;
-        }
-
-        // no errors, insert the value into the hash map
-
-        // brand new value (no replacing) has specific response
-        if (!hash_map.has(key)) {
-            hash_map.set(key, val);
-            res.status(201).json({"replaced": false});
-            return;
-        } 
-        // otherwise, get old value before replacing, then send other response
-        else {
-            let old_val = hash_map.get(key);
-            hash_map.set(key, val);
-            res.status(200).json({"replaced": true, "prev": old_val});
-            return;
-        }
-
-    });
-
-    // GET endpoint
-    app.get('/kvs', (req, res) => {
-
-        // if key wasn't included in the body, send error
-        if (!req.body.hasOwnProperty('key')) {
-            res.status(400).json({"error": "bad GET"});
-            return;
-        } 
-
-        let { key } = req.body;
-        // if hash map doesn't have the key, send not found error
-        if (!hash_map.has(key)) {
-            res.status(404).json({"error": "not found"});
-            return;
-        } 
-        // otherwise, send a successful response containing the value of the hash map's value
-        else {
-            let val = hash_map.get(key);
-            res.status(200).json({"val": val});
-            return;
-        }
-    });
-
-    // DELETE endpoint
-    app.delete('/kvs', (req, res) => {
-
-        // if key wasn't included in the body, send error
-        if (!req.body.hasOwnProperty('key')) {
-            res.status(400).json({"error": "bad DELETE"});
-            return;
-        } 
-
-        let { key } = req.body;
-        // if hash map doesn't have the key, send not found error
-        if (!hash_map.has(key)) {
-            res.status(404).json({"error": "not found"});
-            return;
-        } 
-        // otherwise, send a successful response containing the value of the hash map's value
-        else {
-            let old_val = hash_map.get(key);
-            // no errors, delete the hash map's value
-            hash_map.delete(key);
-            res.status(200).json({"prev": old_val});
-            return;
-        }
-    });
+if (address_split.length != 2) {
+    console.log("No address or malformed address");
+    return 1;
 }
 
-// if we have a forwarding address, we are a follower instance.
-else {
+const address = address_split[0];
+const port = parseInt(address_split[1]);
 
-    const URL = `http://${forwarding_address}/kvs`;
-    const timeout_ms = 10000;
+// initialized state
+let initialized = false;
+let view = [];
 
-    // PUT endpoint
-    app.put('/kvs', (req, res) => {
+const hash_map = new Map();
 
-        // forward PUT request to upstream with 10 second timeout
-        axios({
-            url: URL,
-            method: 'put',
-            data: req.body,
-            timeout: timeout_ms
-        })
-            // if we got a response from upstream, forward that response to our own requester
-            .then((upstream_res) => {
-                res.status(upstream_res.status).json(upstream_res.data);
+// View change endpoints
+
+app.put('/kvs/admin/view', (req, res) => {
+    // if view wasn't included in the body, send error
+    if (!req.body.hasOwnProperty('view')) {
+        res.status(400).json({"error": "bad PUT"});
+        return;
+    }
+
+    // TODO: if views are the same (maybe do some set comparison?), just return
+
+    let old_view = view;
+    view = req.body.view;
+
+    old_view.forEach((address) => {
+        // Reset any node in the old view that isn't in the new view
+        if (!view.includes(address)) {
+            axios({
+                url: `http://${address}/kvs/admin/view`,
+                method: 'put',
+                data: {'view': view},
+                headers: {'X-HTTP-Method-Override': 'DELETE'}
             })
+                .catch(err => {
+                    // if server responded with an error, forward it to requester
+                    if (err.response) {
+                        res.status(err.response.status).json(err.response.data);
+                    }
+                });
+        }
+    });
+
+    view.forEach((address) => {
+        axios({
+            url: `http://${address}/kvs/admin/view`,
+            method: 'put',
+            data: {'view': view, 'kvs': hash_map},
+        })
             .catch(err => {
-                // if server responded with an error, forward it to client
+                // if server responded with an error, forward it to requester
                 if (err.response) {
                     res.status(err.response.status).json(err.response.data);
                 }
-                // if we didn't receive response from upstream (either couldn't connect or timed out)
-                else {
-                    res.status(503).json({
-                        "error": "upstream down", 
-                        "upstream": forwarding_address});
-                }
-            })
-
+            });
     })
 
-    // GET endpoint
-    app.get('/kvs', (req, res) => {
+    initialized = true;
 
-        // forward PUT request to upstream with 10 second timeout
-        axios({
-            url: URL,
-            method: 'put',
-            data: req.body,
-            timeout: timeout_ms,
-            headers: {'X-HTTP-Method-Override': 'GET'}
-        })
-            // if we got a response from upstream, forward that response to our own requester
-            .then((upstream_res) => {
-                res.status(upstream_res.status).json(upstream_res.data);
-            })
-            .catch(err => {
-                // if server responded with an error, forward it to client
-                if (err.response) {
-                    res.status(err.response.status).json(err.response.data);
-                }
-                // if we didn't receive response from upstream (either couldn't connect or timed out)
-                else {
-                    res.status(503).json({
-                        "error": "upstream down", 
-                        "upstream": forwarding_address});
-                }
-            })
+});
 
-    });
+app.get('kvs/admin/view', (req, res) => {
+    res.status(200).json({"view": view});
+});
 
-    // DELETE endpoint
-    app.delete('/kvs', (req, res) => {
+app.delete('kvs/admin/view', (req, res) => {
+    if (initialized) {
+        initialized = false;
+        view = [];
+        hash_map.clear();
+    
+        res.status(200);
+    }
+    // if uninitialized, return error
+    else {
+        res.status(418).json({"error": "uninitialized"});
+    }
+});
 
-        // forward PUT request to upstream with 10 second timeout
-        axios({
-            url: URL,
-            method: 'put',
-            data: req.body,
-            timeout: timeout_ms,
-            headers: {'X-HTTP-Method-Override': 'DELETE'}
-        })
-            // if we got a response from upstream, forward that response to our own requester
-            .then((upstream_res) => {
-                res.status(upstream_res.status).json(upstream_res.data);
-            })
-            .catch(err => {
-                // if server responded with an error, forward it to client
-                if (err.response) {
-                    res.status(err.response.status).json(err.response.data);
-                }
-                // if we didn't receive response from upstream (either couldn't connect or timed out)
-                else {
-                    res.status(503).json({
-                        "error": "upstream down", 
-                        "upstream": forwarding_address});
-                }
-            })
+// End of view change endpoints--
 
-    });
+// PUT endpoint
+app.put('/kvs', (req, res) => {
 
-}
+    // if key or val wasn't included in the body, send error
+    if (!req.body.hasOwnProperty('key') || !req.body.hasOwnProperty('val')) {
+        res.status(400).json({"error": "bad PUT"});
+        return;
+    } 
+
+    let { key, val } = req.body;
+    // if key or val is too long, send error
+    if (key.length > 200 || val.length > 200) {       
+        res.status(400).json({"error": "key or val too long"});
+        return;
+    }
+
+    // no errors, insert the value into the hash map
+
+    // brand new value (no replacing) has specific response
+    if (!hash_map.has(key)) {
+        hash_map.set(key, val);
+        res.status(201).json({"replaced": false});
+        return;
+    } 
+    // otherwise, get old value before replacing, then send other response
+    else {
+        let old_val = hash_map.get(key);
+        hash_map.set(key, val);
+        res.status(200).json({"replaced": true, "prev": old_val});
+        return;
+    }
+
+});
+
+// GET endpoint
+app.get('/kvs', (req, res) => {
+
+    // if key wasn't included in the body, send error
+    if (!req.body.hasOwnProperty('key')) {
+        res.status(400).json({"error": "bad GET"});
+        return;
+    } 
+
+    let { key } = req.body;
+    // if hash map doesn't have the key, send not found error
+    if (!hash_map.has(key)) {
+        res.status(404).json({"error": "not found"});
+        return;
+    } 
+    // otherwise, send a successful response containing the value of the hash map's value
+    else {
+        let val = hash_map.get(key);
+        res.status(200).json({"val": val});
+        return;
+    }
+});
+
+// DELETE endpoint
+app.delete('/kvs', (req, res) => {
+
+    // if key wasn't included in the body, send error
+    if (!req.body.hasOwnProperty('key')) {
+        res.status(400).json({"error": "bad DELETE"});
+        return;
+    } 
+
+    let { key } = req.body;
+    // if hash map doesn't have the key, send not found error
+    if (!hash_map.has(key)) {
+        res.status(404).json({"error": "not found"});
+        return;
+    } 
+    // otherwise, send a successful response containing the value of the hash map's value
+    else {
+        let old_val = hash_map.get(key);
+        // no errors, delete the hash map's value
+        hash_map.delete(key);
+        res.status(200).json({"prev": old_val});
+        return;
+    }
+});
 
 app.listen(port, () => {
     console.log(`Now listening on port ${port}`);
-    console.log(`Our upstream is : ${forwarding_address}`)
 }); 
