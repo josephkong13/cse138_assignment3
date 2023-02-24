@@ -42,7 +42,16 @@ const port = parseInt(address_split[1]);
 let initialized = false;
 let view = [];
 
-const hash_map = new Map();
+// example of key value pair
+// key: { last_written_vc: vector_clock, value: value, timestamp: datetime }
+
+// operations_list entry
+// [ vector_clock_value, ... ]
+// ip: clock_value (number of write operations this IP has done)
+
+let kvs = {};
+const operations_list = [];
+const total_vc = {};
 
 // View change endpoints
 
@@ -80,7 +89,7 @@ app.put('/kvs/admin/view', (req, res) => {
         axios({
             url: `http://${address}/kvs/admin/view`,
             method: 'put',
-            data: {'view': view, 'kvs': hash_map},
+            data: {'view': view, 'kvs': kvs},
         })
             .catch(err => {
                 // if server responded with an error, forward it to requester
@@ -102,7 +111,7 @@ app.delete('kvs/admin/view', (req, res) => {
     if (initialized) {
         initialized = false;
         view = [];
-        hash_map.clear();
+        kvs = {};
     
         res.status(200);
     }
@@ -133,15 +142,15 @@ app.put('/kvs', (req, res) => {
     // no errors, insert the value into the hash map
 
     // brand new value (no replacing) has specific response
-    if (!hash_map.has(key)) {
-        hash_map.set(key, val);
+    if (!kvs.has(key)) {
+        kvs[key] = val;
         res.status(201).json({"replaced": false});
         return;
     } 
     // otherwise, get old value before replacing, then send other response
     else {
-        let old_val = hash_map.get(key);
-        hash_map.set(key, val);
+        let old_val = kvs[key];
+        kvs[key] = val;
         res.status(200).json({"replaced": true, "prev": old_val});
         return;
     }
@@ -159,13 +168,13 @@ app.get('/kvs', (req, res) => {
 
     let { key } = req.body;
     // if hash map doesn't have the key, send not found error
-    if (!hash_map.has(key)) {
+    if (!(key in kvs)) {
         res.status(404).json({"error": "not found"});
         return;
     } 
     // otherwise, send a successful response containing the value of the hash map's value
     else {
-        let val = hash_map.get(key);
+        let val = kvs[key];
         res.status(200).json({"val": val});
         return;
     }
@@ -182,15 +191,15 @@ app.delete('/kvs', (req, res) => {
 
     let { key } = req.body;
     // if hash map doesn't have the key, send not found error
-    if (!hash_map.has(key)) {
+    if (!(kvs in key)) {
         res.status(404).json({"error": "not found"});
         return;
     } 
     // otherwise, send a successful response containing the value of the hash map's value
     else {
-        let old_val = hash_map.get(key);
+        let old_val = kvs[key];
         // no errors, delete the hash map's value
-        hash_map.delete(key);
+        // kvs.delete(key);
         res.status(200).json({"prev": old_val});
         return;
     }
