@@ -11,17 +11,18 @@ const { address, port } = require("../address");
 // PUT endpoint
 router.put("/:key", (req, res) => {
 
-  console.log("KEY:", req.params.key);
+  const key = req.params.key;
 
   // if key or val wasn't included in the body, send error
-  if (!req.body.hasOwnProperty("key") || !req.body.hasOwnProperty("val")) {
+  if (!req.body || !req.body.hasOwnProperty("val")) {
     res.status(400).json({ error: "bad PUT" });
     return;
   }
 
-  let { key, val } = req.body;
-  // if key or val is too long, send error
-  if (key.length > 200 || val.length > 200) {
+  let { val } = req.body;
+
+  // if val size more than 8MB, send error.
+  if (val.length > 8000000) {
     res.status(400).json({ error: "key or val too long" });
     return;
   }
@@ -44,7 +45,7 @@ router.put("/:key", (req, res) => {
 });
 
 // GET endpoint
-router.get("/", (req, res) => {
+router.get("/:key", (req, res) => {
   // if key wasn't included in the body, send error
   if (!req.body.hasOwnProperty("key")) {
     res.status(400).json({ error: "bad GET" });

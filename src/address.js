@@ -1,8 +1,10 @@
-const full_address = process.env.ADDRESS || "0.0.0.0";
+const full_address = process.env.ADDRESS || "0.0.0.0:13800";
 
 const address_split = full_address.split(":");
 
 let malformed_check = false;
+
+// TODO: Check validity of address + port
 
 if (address_split.length != 2) {
   console.log("No address or malformed address");
