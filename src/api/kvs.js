@@ -35,6 +35,7 @@ router.put("/", (req, res) => {
   // if not dont inc
   // add to ops list
 
+  state.operations_list.push(last_written_vc);
 
   state.kvs[key] = {
     last_written_vc,
@@ -42,21 +43,6 @@ router.put("/", (req, res) => {
     timestamp: new Date(),
   }
 
-  // no errors, insert the value into the hash map
-
-  // brand new value (no replacing) has specific response
-  if (!kvs.has(key)) {
-    kvs[key] = val;
-    res.status(201).json({ replaced: false });
-    return;
-  }
-  // otherwise, get old value before replacing, then send other response
-  else {
-    let old_val = kvs[key];
-    kvs[key] = val;
-    res.status(200).json({ replaced: true, prev: old_val });
-    return;
-  }
 });
 
 // GET endpoint
