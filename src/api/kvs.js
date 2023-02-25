@@ -9,19 +9,24 @@ const { address, port } = require("../address");
 */
 
 // PUT endpoint
-router.put("/", (req, res) => {
+router.put("/:key", (req, res) => {
+
+  const key = req.params.key;
+
   // if key or val wasn't included in the body, send error
-  
-  
-  if(!req.body || !req.body.key || !req.body.val)
-    return res.status(400).json({ error: "bad PUT" });
 
-  let { key, val, vc } = req.body;
+  if (!req.body || !req.body.hasOwnProperty("val")) {
+    res.status(400).json({ error: "bad PUT" });
+    return;
+  }
 
-  // if key or val is too long, send error
-  if (key.length > 200 || val.length > 200)
-    return res.status(400).json({ error: "key or val too long" });
+  let { val, vc } = req.body;
 
+  // if val size more than 8MB, send error.
+  if (val.length > 8000000) {
+    res.status(400).json({ error: "key or val too long" });
+    return;
+  }
 
   // last_written_vc = max of current thc and client, plus 1 for current process
   const last_written_vc = {};
@@ -46,7 +51,7 @@ router.put("/", (req, res) => {
 });
 
 // GET endpoint
-router.get("/", (req, res) => {
+router.get("/:key", (req, res) => {
   // if key wasn't included in the body, send error
   if (!req.body.hasOwnProperty("key")) {
     res.status(400).json({ error: "bad GET" });
