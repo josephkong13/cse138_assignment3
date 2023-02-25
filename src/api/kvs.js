@@ -14,12 +14,13 @@ router.put("/:key", (req, res) => {
   const key = req.params.key;
 
   // if key or val wasn't included in the body, send error
+
   if (!req.body || !req.body.hasOwnProperty("val")) {
     res.status(400).json({ error: "bad PUT" });
     return;
   }
 
-  let { val } = req.body;
+  let { val, vc } = req.body;
 
   // if val size more than 8MB, send error.
   if (val.length > 8000000) {
@@ -27,21 +28,26 @@ router.put("/:key", (req, res) => {
     return;
   }
 
-  // no errors, insert the value into the hash map
+  // last_written_vc = max of current thc and client, plus 1 for current process
+  const last_written_vc = {};
 
-  // brand new value (no replacing) has specific response
-  if (!kvs.has(key)) {
-    kvs[key] = val;
-    res.status(201).json({ replaced: false });
-    return;
+  for(const key in vc)
+    last_written_vc[key] = Math.max(vc[key], state.total_vc[key]);
+
+  last_written_vc[address] = last_written_vc[address] + 1;
+
+  // if thc is one behind, increment thc
+  // if not dont inc
+  // add to ops list
+
+  state.operations_list.push(last_written_vc);
+
+  state.kvs[key] = {
+    last_written_vc,
+    value: val,
+    timestamp: new Date(),
   }
-  // otherwise, get old value before replacing, then send other response
-  else {
-    let old_val = kvs[key];
-    kvs[key] = val;
-    res.status(200).json({ replaced: true, prev: old_val });
-    return;
-  }
+
 });
 
 // GET endpoint
