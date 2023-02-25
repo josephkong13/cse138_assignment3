@@ -14,7 +14,7 @@ const app = express();
 const state = require("./state.js");
 const viewchange = require("./api/viewchange");
 const kvs = require("./api/kvs");
-const { port } = require("./address");
+const { malformed_check, port } = require("./address");
 
 // Middleware--
 
@@ -34,6 +34,10 @@ app.use("/kvs/admin/view", viewchange);
 app.use("/kvs/data", kvs);
 
 // End middleware--
+
+if (malformed_check) {
+  return 1;
+}
 
 app.listen(port, () => {
   console.log(`Now listening on port ${port}`);

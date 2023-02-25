@@ -11,6 +11,4 @@ const state = {
   total_vc: {},
 };
 
-console.log("HELLO");
-
 module.exports = state;

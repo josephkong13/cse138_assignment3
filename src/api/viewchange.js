@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const state = require("../state");
 const axios = require("axios");
-const { address, port } = require("./address");
+const { address, port } = require("../address");
 
 /* TODO: 
 - TODOs are in the routes below

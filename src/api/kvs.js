@@ -2,14 +2,17 @@ const express = require("express");
 const router = express.Router();
 const state = require("../state");
 const axios = require("axios");
-const { address, port } = require("./address");
+const { address, port } = require("../address");
 
 /* TODO: 
 - These routes are old, need to refactor for new spec 
 */
 
 // PUT endpoint
-router.put("/", (req, res) => {
+router.put("/:key", (req, res) => {
+
+  console.log("KEY:", req.params.key);
+
   // if key or val wasn't included in the body, send error
   if (!req.body.hasOwnProperty("key") || !req.body.hasOwnProperty("val")) {
     res.status(400).json({ error: "bad PUT" });
