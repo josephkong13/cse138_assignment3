@@ -22,10 +22,10 @@ const max_vc = function (vc1, vc2) {
 
 /*
 Compares two vector clocks
-// 0 if vc1 || vc2
-// 1 if vc1 > vc2
-// -1 if vc1 < vc2
-// 2 if vc1 = vc2
+// 'CONCURRENT' if vc1 || vc2
+// 'NEWER' if vc1 > vc2
+// 'OLDER' if vc1 < vc2
+// 'SAME' if vc1 = vc2
 */
 const compare_vc = function (vc1, vc2) {
   let equal = true;
@@ -48,13 +48,13 @@ const compare_vc = function (vc1, vc2) {
   });
 
   if (equal) {
-    return 2;
+    return "EQUAL";
   } else if (greater) {
-    return 1;
+    return "NEWER";
   } else if (less) {
-    return -1;
+    return "OLDER";
   } else {
-    return 0;
+    return "CONCURRENT";
   }
 };
 
@@ -71,51 +71,53 @@ const merge_kvs = function (total_vc2, kvs2) {
     const v1 = kvs_entry(key, state.kvs);
     const v2 = kvs_entry(key, kvs2);
 
+    if (v1 == null) {
+      new_kvs[key] = v2;
+      return;
+    } else if (v2 == null) {
+      new_kvs[key] = v1;
+      return;
+    }
+
     const vc1 = v1.last_written_vc;
     const vc2 = v2.last_written_vc;
 
     const t1 = v1.timestamp;
     const t2 = v2.timestamp;
 
-    const d1 = new Date(t1);
-    const d2 = new Date(t2);
     const combined_vc = max_vc(vc1, vc2);
 
-    if (v1 == null) {
-      new_kvs[key] = v2;
-    } else if (v2 == null) {
-      new_kvs[key] = v1;
-    } else if (compare_vc(vc1, vc2) == 0) {
-      if (d1 < d2) {
+    if (compare_vc(vc1, vc2) == "CONCURRENT") {
+      if (t1 < t2) {
         /* vc2 is newer */
         new_kvs[key] = {
-          last_written_vc: combined_vc,
+          last_written_vc: v2.last_written_vc,
           value: v2.value,
           timestamp: t2,
         };
       } else {
         /* vc1 is newer*/
         new_kvs[key] = {
-          last_written_vc: combined_vc,
+          last_written_vc: v1.last_written_vc,
           value: v1.value,
           timestamp: t1,
         };
       }
-    } else if (compare_vc(vc1, vc2) == -1) {
+    } else if (compare_vc(vc1, vc2) == "OLDER") {
       /* vc2 is newer*/
       new_kvs[key] = {
-        last_written_vc: combined_vc,
+        last_written_vc: vc2.last_written_vc,
         value: v2.value,
         timestamp: t2,
       };
-    } else if (compare_vc(vc1, vc2) == 1) {
+    } else if (compare_vc(vc1, vc2) == "NEWER") {
       /* vc1 is newer*/
       new_kvs[key] = {
-        last_written_vc: combined_vc,
+        last_written_vc: vc1.last_written_vc,
         value: v1.value,
         timestamp: t1,
       };
-    } else if (compare_vc(vc1, vc2) == 2) {
+    } else if (compare_vc(vc1, vc2) == "EQUAL") {
       /* vc1 == vc2 */
       new_kvs[key] = {
         last_written_vc: combined_vc,
