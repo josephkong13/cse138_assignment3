@@ -68,8 +68,8 @@ const merge_kvs = function (total_vc2, kvs2) {
   const keys = [...new Set([...Object.keys(state.kvs), ...Object.keys(kvs2)])];
 
   keys.forEach((key) => {
-    const v1 = kvs_entry(key, state.kvs);
-    const v2 = kvs_entry(key, kvs2);
+    const v1 = kvs_entry(state.kvs, key);
+    const v2 = kvs_entry(kvs2, key);
 
     if (v1 == null) {
       new_kvs[key] = v2;
@@ -87,18 +87,19 @@ const merge_kvs = function (total_vc2, kvs2) {
 
     const combined_vc = max_vc(vc1, vc2);
 
+    /*TODO: go over if both are concurrent, should we really not combine vector clocks?*/
     if (compare_vc(vc1, vc2) == "CONCURRENT") {
       if (t1 < t2) {
         /* vc2 is newer */
         new_kvs[key] = {
-          last_written_vc: v2.last_written_vc,
+          last_written_vc: vc2,
           value: v2.value,
           timestamp: t2,
         };
       } else {
         /* vc1 is newer*/
         new_kvs[key] = {
-          last_written_vc: v1.last_written_vc,
+          last_written_vc: vc1,
           value: v1.value,
           timestamp: t1,
         };
@@ -106,14 +107,14 @@ const merge_kvs = function (total_vc2, kvs2) {
     } else if (compare_vc(vc1, vc2) == "OLDER") {
       /* vc2 is newer*/
       new_kvs[key] = {
-        last_written_vc: vc2.last_written_vc,
+        last_written_vc: vc2,
         value: v2.value,
         timestamp: t2,
       };
     } else if (compare_vc(vc1, vc2) == "NEWER") {
       /* vc1 is newer*/
       new_kvs[key] = {
-        last_written_vc: vc1.last_written_vc,
+        last_written_vc: vc1,
         value: v1.value,
         timestamp: t1,
       };
