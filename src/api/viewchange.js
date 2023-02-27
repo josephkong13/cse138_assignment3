@@ -12,7 +12,7 @@ const { address, port } = require("../address");
 router.put("/", (req, res) => { 
   // if view wasn't included in the body, send error
   if (!req.body.hasOwnProperty("view")) {
-    res.status(400).json({ error: "bad PUT" });
+    res.status(400).json({ error: "bad request" });
     return;
   }
   if(req.body.kvs){
@@ -25,6 +25,7 @@ router.put("/", (req, res) => {
   let old_view = state.view;
   state.view = req.body.view;
   let reset = false;
+  
   old_view.forEach((address) => {
     // Reset any node in the old view that isn't in the new view
     if (!state.view.includes(address)) {
@@ -75,6 +76,7 @@ router.delete("/", (req, res) => {
     state.initialized = false;
     state.view = [];
     state.kvs = {};
+    state.total_vc = [];
 
     res.status(200);
   }
