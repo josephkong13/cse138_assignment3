@@ -9,17 +9,21 @@ const { address, port } = require("../address");
 */
 
 // View change endpoints
-router.put("/", (req, res) => {
+router.put("/", (req, res) => { 
   // if view wasn't included in the body, send error
   if (!req.body.hasOwnProperty("view")) {
     res.status(400).json({ error: "bad PUT" });
     return;
   }
 
-  // TODO: if views are the same (maybe do some set comparison?), just return
-
+  //  if views are the same, just return
   let old_view = state.view;
   state.view = req.body.view;
+  if(JSON.stringify(old_view)==JSON.stringify(state.view)){
+    console.log("SAME VIEW");
+    res.status(200).send();
+    return;
+  }
 
   old_view.forEach((address) => {
     // Reset any node in the old view that isn't in the new view
@@ -27,7 +31,7 @@ router.put("/", (req, res) => {
       axios({
         url: `http://${address}/kvs/admin/view`,
         method: "put",
-        data: { view: state.view },
+        data: { initialized: false, view: state.view },
         headers: { "X-HTTP-Method-Override": "DELETE" },
       }).catch((err) => {
         // if server responded with an error, forward it to requester
@@ -39,10 +43,11 @@ router.put("/", (req, res) => {
   });
 
   state.view.forEach((address) => {
+    // send kvs to nodes in the new view
     axios({
       url: `http://${address}/kvs/admin/view`,
       method: "put",
-      data: { view: state.view, kvs: state.kvs },
+      data: { initialized: true, view: state.view, kvs: state.kvs },
     }).catch((err) => {
       // if server responded with an error, forward it to requester
       if (err.response) {
@@ -52,6 +57,7 @@ router.put("/", (req, res) => {
   });
 
   state.initialized = true;
+  res.status(200).send();
 });
 
 router.get("/", (req, res) => {
