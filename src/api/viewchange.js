@@ -15,23 +15,22 @@ router.put("/", (req, res) => {
     res.status(400).json({ error: "bad PUT" });
     return;
   }
-
-  //  if views are the same, just return
+  if(req.body.kvs){
+    state.kvs = req.body.kvs;
+  }
+  if(req.body.total_vc){
+    state.total_vc = req.body.total_vc;
+  }
+  
   let old_view = state.view;
   state.view = req.body.view;
-  if(JSON.stringify(old_view)==JSON.stringify(state.view)){
-    console.log("SAME VIEW");
-    res.status(200).send();
-    return;
-  }
-
+  let reset = false;
   old_view.forEach((address) => {
     // Reset any node in the old view that isn't in the new view
     if (!state.view.includes(address)) {
       axios({
         url: `http://${address}/kvs/admin/view`,
         method: "put",
-        data: { initialized: false, view: state.view },
         headers: { "X-HTTP-Method-Override": "DELETE" },
       }).catch((err) => {
         // if server responded with an error, forward it to requester
@@ -39,15 +38,21 @@ router.put("/", (req, res) => {
           res.status(err.response.status).json(err.response.data);
         }
       });
+      reset = true;
     }
   });
-
+  //  if views are the same, just return
+  if(reset == false && old_view.length == state.view.length){
+    console.log("SAME VIEW");
+    res.status(200).send();
+    return;
+  }
   state.view.forEach((address) => {
-    // send kvs to nodes in the new view
+    // send view, kvs, and total clock to nodes in the new view
     axios({
       url: `http://${address}/kvs/admin/view`,
       method: "put",
-      data: { initialized: true, view: state.view, kvs: state.kvs },
+      data: { view: state.view, kvs: state.kvs, total_vc: state.total_vc },
     }).catch((err) => {
       // if server responded with an error, forward it to requester
       if (err.response) {
@@ -58,6 +63,7 @@ router.put("/", (req, res) => {
 
   state.initialized = true;
   res.status(200).send();
+  return;
 });
 
 router.get("/", (req, res) => {
