@@ -197,4 +197,45 @@ router.delete("/:key", (req, res) => {
   res.status(response_code).json({ "causal-metadata": last_written_vc });
 });
 
+// GET endpoint
+router.get("/", (req, res) => {
+  // if we're uninitialized, return 418
+  if (!state.initialized) {
+    res.status(418).json({ error: "uninitialized" });
+    return;
+  }
+
+  // if causal_metadata wasn't included in the body, send error
+  if (!req.body || !req.body.hasOwnProperty("causal-metadata")) {
+    res.status(400).json({ error: "bad request" });
+    return;
+  }
+
+  let causal_metadata = req.body["causal-metadata"] ? req.body["causal-metadata"] : {};
+
+  // if total_vc is newer or same, we can return our keys
+  const total_vc_to_causal_metadata = compare_vc(state.total_vc, causal_metadata);
+  console.log(total_vc_to_causal_metadata);
+  if (total_vc_to_causal_metadata == "NEWER" || total_vc_to_causal_metadata == "EQUAL") {
+    let count = 0;
+    const keys = [];
+
+    for (const prop in state.kvs) {
+      if (state.kvs[prop].value != null) {
+        keys.push(prop);
+        count++;
+      }
+    }
+
+    res.status(200).json({ "causal-metadata": state.total_vc, count, keys });
+
+    return;
+  }
+
+  // TODO: otherwise, if total_vc is concurrent or older
+
+  // stall for 20 secs
+  res.status(500).json({ error: "TODO: should stall here" });
+});
+
 module.exports = router;
