@@ -64,7 +64,6 @@ Modifies state.kvs and state.total_vc
 */
 
 const merge_kvs = function (total_vc2, kvs2) {
-  console.log(state.total_vc, );
 
   const new_kvs = {};
   const keys = [...new Set([...Object.keys(state.kvs), ...Object.keys(kvs2)])];
