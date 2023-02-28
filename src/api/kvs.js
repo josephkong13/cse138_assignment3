@@ -35,14 +35,16 @@ router.put("/:key", (req, res) => {
 
   const key = req.params.key;
 
+  console.log(req.body);
+
   // if causal_metadata or val wasn't included in the body, send error
-  if (!req.body || !req.body.val || !req.body["causal-metadata"]) {
+  if (!req.body || !req.body.hasOwnProperty("val") || !req.body.hasOwnProperty("causal-metadata")) {
     res.status(400).json({ error: "bad request" });
     return;
   }
 
   let val = req.body.val;
-  let causal_metadata = req.body["causal-metadata"];
+  let causal_metadata = req.body["causal-metadata"] ? req.body["causal-metadata"] : {};
 
   // if val size more than 8MB, send error. may have to consider js objects
   if (val.length > 8000000) {
@@ -107,6 +109,7 @@ router.get("/:key", (req, res) => {
 
       // If most recent write of key's value was deleting it
       if (state.kvs[key].value == null) {
+        console.log("line 112");
         res.status(404).json({ "causal-metadata": new_causal_metadata });
       } else {
         res.status(200).json({
@@ -125,6 +128,7 @@ router.get("/:key", (req, res) => {
   if (total_vc_to_causal_metadata == "NEWER" || total_vc_to_causal_metadata == "EQUAL") {
     // If key was never written to, send 404 and client's VC back
     if (!state.kvs.hasOwnProperty(key)) {
+      console.log("line 131");
       res.status(404).json({ "causal-metadata": causal_metadata });
     } else {
       // return value, causal_metadata = max_vc(causal_metadata, key_last_written)
@@ -162,12 +166,12 @@ router.delete("/:key", (req, res) => {
   const key = req.params.key;
 
   // if causal_metadata wasn't included in the body, send error
-  if (!req.body || !req.body["causal-metadata"]) {
+  if (!req.body || !req.body.hasOwnProperty("causal-metadata")) {
     res.status(400).json({ error: "bad request" });
     return;
   }
 
-  let causal_metadata = req.body["causal-metadata"];
+  let causal_metadata = req.body["causal-metadata"] ? req.body["causal-metadata"] : {};
 
   // last_written_vc = max of current thc and client, plus 1 for current write
   if (state.total_vc.hasOwnProperty(full_address)) {
