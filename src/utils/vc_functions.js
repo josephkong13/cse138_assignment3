@@ -1,11 +1,11 @@
 const state = require("../state");
 
 const vc_value = function (vc, ip) {
-  return vc[ip] ? vc[ip] : 0;
+  return vc.hasOwnProperty(ip) ? vc[ip] : 0;
 };
 
 const kvs_entry = function (kvs, key) {
-  return kvs[key] ? kvs[key] : null;
+  return kvs.hasOwnProperty(key) ? kvs[key] : null;
 };
 
 const max_vc = function (vc1, vc2) {

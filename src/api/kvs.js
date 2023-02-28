@@ -215,14 +215,16 @@ router.get("/", (req, res) => {
 
   // if total_vc is newer or same, we can return our keys
   const total_vc_to_causal_metadata = compare_vc(state.total_vc, causal_metadata);
-  console.log(total_vc_to_causal_metadata);
+  // console.log(total_vc_to_causal_metadata);
   if (total_vc_to_causal_metadata == "NEWER" || total_vc_to_causal_metadata == "EQUAL") {
     let count = 0;
     const keys = [];
 
-    for (const prop in state.kvs) {
-      if (state.kvs[prop].value != null) {
-        keys.push(prop);
+    for (const key in state.kvs) {
+      const key_to_total_vc = compare_vc(state.kvs[key].last_written_vc, state.total_vc);
+      // if the key's value is non-empty and within our total_vc, add it
+      if (state.kvs[key].value != null && (key_to_total_vc == "EQUAL" || key_to_total_vc == "OLDER")) {
+        keys.push(key);
         count++;
       }
     }
