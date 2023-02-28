@@ -14,17 +14,17 @@ function isObjEmpty (obj) {
 */
 
 // View change endpoints
-router.put("/", (req, res) => {
+router.put("/", (req, res) => { 
   // if view wasn't included in the body, send error
   if (!req.body.hasOwnProperty("view")) {
     res.status(400).json({ error: "bad request" });
     return;
   }
-
-  // TODO: if views are the same (maybe do some set comparison?), just return
-
+  
   let old_view = state.view;
   state.view = req.body.view;
+
+  let reset = false;
 
   // If we got some kvs and vc info from the node that is initializing us, update our state.
   if (req.body.hasOwnProperty("kvs") && req.body.hasOwnProperty("total_vc")) {
@@ -39,14 +39,13 @@ router.put("/", (req, res) => {
       state.total_vc[address] = 0;
     })
   }
-
+  
   old_view.forEach((address) => {
     // Reset any node in the old view that isn't in the new view
     if (!state.view.includes(address)) {
       axios({
         url: `http://${address}/kvs/admin/view`,
         method: "put",
-        data: { view: state.view },
         headers: { "X-HTTP-Method-Override": "DELETE" },
       }).catch((err) => {
         // if server responded with an error, forward it to requester
@@ -54,8 +53,18 @@ router.put("/", (req, res) => {
           res.status(err.response.status).json(err.response.data);
         }
       });
+      reset = true;
     }
   });
+  
+  // If we didn't reset anything and old_view has the same length as the new view
+  // then the views are the same
+  // if views are the same, just return
+  if (reset == false && old_view.length == state.view.length) {
+    // console.log("SAME VIEW");
+    res.status(200).send();
+    return;
+  }
 
   // Broadcast endpoint to all replica in the cluster except us
   state.view.forEach((address) => {
@@ -78,7 +87,7 @@ router.put("/", (req, res) => {
   // console.log('view', state.view);
   // console.log('total_vc', state.total_vc);
 
-  res.status(200).end();
+  res.status(200).send();
 });
 
 router.get("/", (req, res) => {
@@ -92,7 +101,7 @@ router.delete("/", (req, res) => {
     state.kvs = {};
     state.total_vc = {};
 
-    res.status(200);
+    res.status(200).send();
   }
   // if uninitialized, return error
   else {
