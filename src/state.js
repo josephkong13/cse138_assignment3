@@ -7,7 +7,7 @@ const state = {
   // operations_list entry
   // [ vector_clock_value, ... ]
   // ip: clock_value (number of write operations this IP has done)
-  operations_list: [],
+  // operations_list: [],
   total_vc: {},
 };
 

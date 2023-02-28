@@ -1,4 +1,4 @@
-const full_address = process.env.ADDRESS || "0.0.0.0:13800";
+const full_address = process.env.ADDRESS || "localhost:13800"; // set to localhost for testing, change back to 0.0.0.0 later
 
 const address_split = full_address.split(":");
 
@@ -14,4 +14,4 @@ if (address_split.length != 2) {
 const address = address_split[0];
 const port = parseInt(address_split[1]);
 
-module.exports = { malformed_check, address, port };
+module.exports = { malformed_check, address, port, full_address };

@@ -2,7 +2,10 @@ const express = require("express");
 const router = express.Router();
 const state = require("../state");
 const axios = require("axios");
-const { address, port } = require("../address");
+const { full_address } = require("../address");
+const { max_vc, compare_vc } = require("../utils/vc_functions");
+
+// add a function for other_stuff too
 
 /* TODO: 
 - These routes are old, need to refactor for new spec 
@@ -11,89 +14,173 @@ const { address, port } = require("../address");
 // PUT endpoint
 router.put("/:key", (req, res) => {
 
+  // if we're uninitialized, return 418
+  if (!state.initialized) {
+    res.status(418).json({ error: "uninitialized" });
+    return;
+  }
+
   const key = req.params.key;
 
-  // if key or val wasn't included in the body, send error
-
-  if (!req.body || !req.body.hasOwnProperty("val")) {
-    res.status(400).json({ error: "bad PUT" });
+  // if causal_metadata or val wasn't included in the body, send error
+  if (!req.body || !req.body.val || !req.body["causal-metadata"]) {
+    res.status(400).json({ error: "bad request" });
     return;
   }
 
-  let { val, vc } = req.body;
+  let val = req.body.val;
+  let causal_metadata = req.body["causal-metadata"];
 
-  // if val size more than 8MB, send error.
+  // if val size more than 8MB, send error. may have to consider js objects
   if (val.length > 8000000) {
-    res.status(400).json({ error: "key or val too long" });
+    res.status(400).json({ error: "val too large" });
     return;
   }
 
-  // last_written_vc = max of current thc and client, plus 1 for current process
-  const last_written_vc = {};
+  // last_written_vc = max of current thc and client, plus 1 for current write
+  if (state.total_vc.hasOwnProperty(full_address)) {
+    state.total_vc[full_address] += 1; 
+  } else {
+    state.total_vc[full_address] = 1; 
+  }
 
-  for(const key in vc)
-    last_written_vc[key] = Math.max(vc[key], state.total_vc[key]);
+  const last_written_vc = max_vc(causal_metadata, state.total_vc);
 
-  last_written_vc[address] = last_written_vc[address] + 1;
+  // If the key we write to was deleted or completely new, use response code 201
+  let response_code = 201;
 
-  // if thc is one behind, increment thc
-  // if not dont inc
-  // add to ops list
-
-  state.operations_list.push(last_written_vc);
+  // If we had an existing, non-deleted value, use response code 200
+  if (state.kvs.hasOwnProperty(key) && state.kvs[key] != null) {
+    response_code = 200;
+  }
 
   state.kvs[key] = {
     last_written_vc,
     value: val,
-    timestamp: new Date(),
+    timestamp: Date.now(),
   }
 
+  // TODO: BROADCAST KVS + T_VC TO ALL OTHER REPLICAS IN VIEW
+
+  res.status(response_code).json({ "causal-metadata": last_written_vc });
 });
 
 // GET endpoint
 router.get("/:key", (req, res) => {
-  // if key wasn't included in the body, send error
-  if (!req.body.hasOwnProperty("key")) {
-    res.status(400).json({ error: "bad GET" });
+  // if we're uninitialized, return 418
+  if (!state.initialized) {
+    res.status(418).json({ error: "uninitialized" });
     return;
   }
 
-  let { key } = req.body;
-  // if hash map doesn't have the key, send not found error
-  if (!(key in kvs)) {
-    res.status(404).json({ error: "not found" });
+  const key = req.params.key;
+
+  // if causal_metadata wasn't included in the body, send error
+  if (!req.body || !req.body["causal-metadata"]) {
+    res.status(400).json({ error: "bad request" });
     return;
   }
-  // otherwise, send a successful response containing the value of the hash map's value
-  else {
-    let val = kvs[key];
-    res.status(200).json({ val: val });
+
+  let causal_metadata = req.body["causal-metadata"];
+
+  if (state.kvs.hasOwnProperty(key)) {
+    let key_last_written = state.kvs[key].last_written_vc;
+    // if key_last_written is newer/same/concurrent, return value
+    // and causal metadata = max_vc(causal_metadata, key_last_written)
+    if (compare_vc(key_last_written, causal_metadata) != "OLDER") {
+
+      const new_causal_metadata = max_vc(causal_metadata, key_last_written);
+
+      // If most recent write of key's value was deleting it
+      if (state.kvs[key].value == null) {
+        res.status(404).json({ "causal-metadata": new_causal_metadata });
+      } else {
+        res.status(200).json({
+          val: state.kvs[key].value,
+          "causal-metadata": new_causal_metadata,
+        });
+      }
+
+      return;
+    }
+
+  }
+
+  // if total_vc is newer or same
+  const total_vc_to_causal_metadata = compare_vc(state.total_vc, causal_metadata);
+  if (total_vc_to_causal_metadata == "NEWER" || total_vc_to_causal_metadata == "EQUAL") {
+    // If key was never written to, send 404 and client's VC back
+    if (!state.kvs.hasOwnProperty(key)) {
+      res.status(404).json({ "causal-metadata": causal_metadata });
+    } else {
+      // return value, causal_metadata = max_vc(causal_metadata, key_last_written)
+      const key_last_written = state.kvs[key].last_written_vc;
+      const new_causal_metadata = max_vc(causal_metadata, key_last_written);
+
+      // If most recent write of key's value was deleting it
+      if (state.kvs[key].value == null) {
+        res.status(404).json({ "causal-metadata": new_causal_metadata });
+      } else {
+        res.status(200).json({
+          val: state.kvs[key].value,
+          "causal-metadata": new_causal_metadata,
+        });
+      }
+    }
     return;
   }
+
+  // TODO: otherwise, if total_vc is concurrent or older
+
+  // stall for 20 secs
+  res.status(500).json({ error: "TODO: should stall here" });
 });
 
 // DELETE endpoint
-router.delete("/", (req, res) => {
-  // if key wasn't included in the body, send error
-  if (!req.body.hasOwnProperty("key")) {
-    res.status(400).json({ error: "bad DELETE" });
+router.delete("/:key", (req, res) => {
+
+  // if we're uninitialized, return 418
+  if (!state.initialized) {
+    res.status(418).json({ error: "uninitialized" });
     return;
   }
 
-  let { key } = req.body;
-  // if hash map doesn't have the key, send not found error
-  if (!(kvs in key)) {
-    res.status(404).json({ error: "not found" });
+  const key = req.params.key;
+
+  // if causal_metadata wasn't included in the body, send error
+  if (!req.body || !req.body["causal-metadata"]) {
+    res.status(400).json({ error: "bad request" });
     return;
   }
-  // otherwise, send a successful response containing the value of the hash map's value
-  else {
-    let old_val = kvs[key];
-    // no errors, delete the hash map's value
-    // kvs.delete(key);
-    res.status(200).json({ prev: old_val });
-    return;
+
+  let causal_metadata = req.body["causal-metadata"];
+
+  // last_written_vc = max of current thc and client, plus 1 for current write
+  if (state.total_vc.hasOwnProperty(full_address)) {
+    state.total_vc[full_address] += 1; 
+  } else {
+    state.total_vc[full_address] = 1; 
   }
+
+  const last_written_vc = max_vc(causal_metadata, state.total_vc);
+
+  // If the key we write to was deleted or doesn't exist, use response code 404
+  let response_code = 404;
+
+  // If we had an existing, non-deleted value, use response code 200
+  if (state.kvs.hasOwnProperty(key) && state.kvs[key] != null) {
+    response_code = 200;
+  }
+
+  state.kvs[key] = {
+    last_written_vc,
+    value: null,
+    timestamp: Date.now(),
+  }
+
+  // TODO: BROADCAST KVS + T_VC TO ALL OTHER REPLICAS IN VIEW
+
+  res.status(response_code).json({ "causal-metadata": last_written_vc });
 });
 
 module.exports = router;
