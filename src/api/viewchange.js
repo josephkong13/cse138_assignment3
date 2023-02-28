@@ -78,7 +78,7 @@ router.delete("/", (req, res) => {
     state.kvs = {};
     state.total_vc = [];
 
-    res.status(200);
+    res.status(200).send();
   }
   // if uninitialized, return error
   else {
