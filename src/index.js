@@ -14,6 +14,7 @@ const app = express();
 const state = require("./state.js");
 const viewchange = require("./api/viewchange");
 const kvs = require("./api/kvs");
+const gossip = require("./api/gossip");
 const { malformed_check, port } = require("./address");
 
 // Middleware--
@@ -32,6 +33,7 @@ app.use(express.json());
 /* Use the view change routes */
 app.use("/kvs/admin/view", viewchange);
 app.use("/kvs/data", kvs);
+app.use("/kvs/gossip", gossip);
 
 // End middleware--
 
