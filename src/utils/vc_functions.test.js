@@ -236,7 +236,6 @@ describe("Simple merge test", () => {
     state.total_vc = s4.total_vc;
     state.view = s4.view;
     merge_kvs(s5.total_vc, s5.kvs);
-    console.log(state.kvs);
     expect(state.kvs).toEqual(s6.kvs);
     expect(state.total_vc).toEqual(s6.total_vc);
   });
