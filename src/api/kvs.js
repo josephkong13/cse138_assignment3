@@ -3,7 +3,7 @@ const router = express.Router();
 const state = require("../state");
 const axios = require("axios");
 const { full_address } = require("../address");
-const { max_vc } = require("../utils/vc_functions");
+const { max_vc, compare_vc } = require("../utils/vc_functions");
 
 // add a function for other_stuff too
 
@@ -83,33 +83,57 @@ router.get("/:key", (req, res) => {
 
   let causal_metadata = req.body["causal-metadata"];
 
-  if (kvs.hasOwnProperty(key)) {
-    let key_last_written = kvs[key].last_written_vc;
-    // compare_vc(key_last_written, causal_metadata);
-
+  if (state.kvs.hasOwnProperty(key)) {
+    let key_last_written = state.kvs[key].last_written_vc;
     // if key_last_written is newer/same/concurrent, return value
     // and causal metadata = max_vc(causal_metadata, key_last_written)
+    if (compare_vc(key_last_written, causal_metadata) != "OLDER") {
+
+      const new_causal_metadata = max_vc(causal_metadata, key_last_written);
+
+      // If most recent write of key's value was deleting it
+      if (state.kvs[key].value == null) {
+        res.status(404).json({ "causal-metadata": new_causal_metadata });
+      } else {
+        res.status(200).json({
+          val: state.kvs[key].value,
+          "causal-metadata": new_causal_metadata,
+        });
+      }
+
+      return;
+    }
 
   }
 
-  // compare_vc(state.total_vc, kvs[key].last_written_vc);
-
   // if total_vc is newer or same
-  // return value, causal_metadata = max_vc(causal_metadata, key_last_written)
+  const total_vc_to_causal_metadata = compare_vc(state.total_vc, causal_metadata);
+  if (total_vc_to_causal_metadata == "NEWER" || total_vc_to_causal_metadata == "EQUAL") {
+    // If key was never written to, send 404 and client's VC back
+    if (!state.kvs.hasOwnProperty(key)) {
+      res.status(404).json({ "causal-metadata": causal_metadata });
+    } else {
+      // return value, causal_metadata = max_vc(causal_metadata, key_last_written)
+      const key_last_written = state.kvs[key].last_written_vc;
+      const new_causal_metadata = max_vc(causal_metadata, key_last_written);
 
-  // otherwise, if total_vc is concurrent or older
+      // If most recent write of key's value was deleting it
+      if (state.kvs[key].value == null) {
+        res.status(404).json({ "causal-metadata": new_causal_metadata });
+      } else {
+        res.status(200).json({
+          val: state.kvs[key].value,
+          "causal-metadata": new_causal_metadata,
+        });
+      }
+    }
+    return;
+  }
 
-  // // if hash map doesn't have the key, send not found error
-  // if (!(key in kvs)) {
-  //   res.status(404).json({ error: "not found" });
-  //   return;
-  // }
-  // // otherwise, send a successful response containing the value of the hash map's value
-  // else {
-  //   let val = kvs[key];
-  //   res.status(200).json({ val: val });
-  //   return;
-  // }
+  // TODO: otherwise, if total_vc is concurrent or older
+
+  // stall for 20 secs
+  res.status(500).json({ error: "TODO: should stall here" });
 });
 
 // DELETE endpoint
