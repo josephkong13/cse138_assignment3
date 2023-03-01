@@ -77,36 +77,42 @@ router.get("/:key", (req, res) => {
 
   let causal_metadata = req.body["causal-metadata"] ? req.body["causal-metadata"] : {};
 
-  if (state.kvs.hasOwnProperty(key)) {
-    let key_last_written = state.kvs[key].last_written_vc;
-    // if key_last_written is newer/same/concurrent, return value
-    // and causal metadata = max_vc(causal_metadata, key_last_written)
-    if (compare_vc(key_last_written, causal_metadata) != "OLDER") {
+  // attempts to send the key
+  // return true if it sent,
+  // otherwise false
+  const attempt_send_key = () => {
+    if (state.kvs.hasOwnProperty(key)) {
+      let key_last_written = state.kvs[key].last_written_vc;
+      // if key_last_written is newer/same/concurrent, return value
+      // and causal metadata = max_vc(causal_metadata, key_last_written)
+      if (compare_vc(key_last_written, causal_metadata) != "OLDER") {
 
-      const new_causal_metadata = max_vc(causal_metadata, key_last_written);
+        const new_causal_metadata = max_vc(causal_metadata, key_last_written);
 
-      // If most recent write of key's value was deleting it
-      if (state.kvs[key].value == null) {
-        res.status(404).json({ "causal-metadata": new_causal_metadata });
-      } else {
+        // If most recent write of key's value was deleting it
+        if (state.kvs[key].value == null) {
+          res.status(404).json({ "causal-metadata": new_causal_metadata });
+          return true;
+        }
         res.status(200).json({
           val: state.kvs[key].value,
           "causal-metadata": new_causal_metadata,
         });
+        return true;
+        
       }
 
-      return;
     }
 
-  }
+    // if total_vc is newer or same
+    const total_vc_to_causal_metadata = compare_vc(state.total_vc, causal_metadata);
+    if (total_vc_to_causal_metadata == "NEWER" || total_vc_to_causal_metadata == "EQUAL") {
+      // If key was never written to, send 404 and client's VC back
+      if (!state.kvs.hasOwnProperty(key)) {
+        res.status(404).json({ "causal-metadata": causal_metadata });
+        return true;
+      }
 
-  // if total_vc is newer or same
-  const total_vc_to_causal_metadata = compare_vc(state.total_vc, causal_metadata);
-  if (total_vc_to_causal_metadata == "NEWER" || total_vc_to_causal_metadata == "EQUAL") {
-    // If key was never written to, send 404 and client's VC back
-    if (!state.kvs.hasOwnProperty(key)) {
-      res.status(404).json({ "causal-metadata": causal_metadata });
-    } else {
       // return value, causal_metadata = max_vc(causal_metadata, key_last_written)
       const key_last_written = state.kvs[key].last_written_vc;
       const new_causal_metadata = max_vc(causal_metadata, key_last_written);
@@ -114,20 +120,43 @@ router.get("/:key", (req, res) => {
       // If most recent write of key's value was deleting it
       if (state.kvs[key].value == null) {
         res.status(404).json({ "causal-metadata": new_causal_metadata });
-      } else {
-        res.status(200).json({
-          val: state.kvs[key].value,
-          "causal-metadata": new_causal_metadata,
-        });
-      }
+        return true;
+      } 
+
+      res.status(200).json({
+        val: state.kvs[key].value,
+        "causal-metadata": new_causal_metadata,
+      });
+      return true;
     }
-    return;
+
+    return false;
   }
 
-  // TODO: otherwise, if total_vc is concurrent or older
+  let sent = attempt_send_key();
 
-  // stall for 20 secs
-  res.status(500).json({ error: "TODO: should stall here" });
+  // TODO: otherwise, if total_vc is concurrent or older
+  if(sent) { return; }
+  
+  // stalls, checks every 5s to see if it has updated due to gossip
+  // and then tries to resend
+  let i = 0;
+  const intervalId = setInterval(() => {
+    
+    // basically run this method again
+    sent = attempt_send_key();
+    
+    if(sent || i >= 4) {
+      
+      if(!sent) {
+        res.status(500).json({ "error": "timed out while waiting for depended updates" });
+      }
+
+      clearInterval(intervalId);
+    }
+
+  }, 5000);
+
 });
 
 // DELETE endpoint
