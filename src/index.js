@@ -14,7 +14,7 @@ const app = express();
 const state = require("./state.js");
 const viewchange = require("./api/viewchange");
 const kvs = require("./api/kvs");
-const gossip = require("./api/gossip");
+const { gossip } = require("./api/gossip");
 const { malformed_check, port } = require("./address");
 
 // Middleware--

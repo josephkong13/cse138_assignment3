@@ -1,28 +1,9 @@
 const express = require("express");
-const axios = require("axios");
 const router = express.Router();
 const state = require("../state");
 const { full_address } = require("../address");
 const { max_vc, compare_vc } = require("../utils/vc_functions");
-
-// add a function for other_stuff too
-const broadcast_kvs = function () {
-  state.view.forEach((address) => {
-      if (address != full_address) {
-        axios({
-          url: `http://${address}/kvs/gossip`,
-          method: "put",
-          data: { view: state.view, kvs: state.kvs, total_vc: state.total_vc },
-        })
-        .catch((err) => {
-        });
-      }
-  })
-};
-
-/* TODO: 
-- These routes are old, need to refactor for new spec 
-*/
+const { broadcast_kvs } = require("./gossip");
 
 // PUT endpoint
 router.put("/:key", (req, res) => {

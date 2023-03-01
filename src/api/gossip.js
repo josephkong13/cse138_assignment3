@@ -1,9 +1,34 @@
 const express = require("express");
-const router = express.Router();
+const gossip = express.Router();
 const { merge_kvs } = require("../utils/vc_functions");
+const state = require("../state");
+const axios = require("axios");
+const { full_address } = require("../address");
+
+// add a function for other_stuff too
+const broadcast_kvs = function () {
+  state.view.forEach((address) => {
+      if (address != full_address) {
+        axios({
+          url: `http://${address}/kvs/gossip`,
+          method: "put",
+          data: { kvs: state.kvs, total_vc: state.total_vc },
+        })
+      }
+  })
+}; 
+
+// Every 5 seconds, broadcast our kvs
+function continuous_broadcast() {
+  if (state.initialized) {
+    broadcast_kvs();
+  }
+
+  setTimeout(continuous_broadcast, 5000);
+}
 
 // PUT endpoint
-router.put("/", (req, res) => {
+gossip.put("/", (req, res) => {
   // if causal_metadata wasn't included in the body, send error
   if (!req.body || !req.body.hasOwnProperty("kvs") || !req.body.hasOwnProperty("total_vc")) {
     res.status(400).json({ error: "bad request" });
@@ -16,8 +41,10 @@ router.put("/", (req, res) => {
 });
 
 // GET endpoint
-router.get("/", (req, res) => {
+gossip.get("/", (req, res) => {
   res.status(200).send();
 });
 
-module.exports = router;
+continuous_broadcast();
+
+module.exports = { gossip, broadcast_kvs };
