@@ -16,13 +16,19 @@ router.put("/:key", (req, res) => {
   const key = req.params.key;
 
   // if causal_metadata or val wasn't included in the body, send error
-  if (!req.body || !req.body.hasOwnProperty("val") || !req.body.hasOwnProperty("causal-metadata")) {
+  if (
+    !req.body ||
+    !req.body.hasOwnProperty("val") ||
+    !req.body.hasOwnProperty("causal-metadata")
+  ) {
     res.status(400).json({ error: "bad request" });
     return;
   }
 
   let val = req.body.val;
-  let causal_metadata = req.body["causal-metadata"] ? req.body["causal-metadata"] : {};
+  let causal_metadata = req.body["causal-metadata"]
+    ? req.body["causal-metadata"]
+    : {};
 
   // if val size more than 8MB, send error. may have to consider js objects
   if (val.length > 8000000) {
@@ -32,9 +38,9 @@ router.put("/:key", (req, res) => {
 
   // last_written_vc = max of current thc and client, plus 1 for current write
   if (state.total_vc.hasOwnProperty(full_address)) {
-    state.total_vc[full_address] += 1; 
+    state.total_vc[full_address] += 1;
   } else {
-    state.total_vc[full_address] = 1; 
+    state.total_vc[full_address] = 1;
   }
 
   const last_written_vc = max_vc(causal_metadata, state.total_vc);
@@ -51,7 +57,7 @@ router.put("/:key", (req, res) => {
     last_written_vc,
     value: val,
     timestamp: Date.now(),
-  }
+  };
 
   // BROADCAST KVS + T_VC TO ALL OTHER REPLICAS IN VIEW
   broadcast_kvs();
@@ -75,14 +81,15 @@ router.get("/:key", (req, res) => {
     return;
   }
 
-  let causal_metadata = req.body["causal-metadata"] ? req.body["causal-metadata"] : {};
+  let causal_metadata = req.body["causal-metadata"]
+    ? req.body["causal-metadata"]
+    : {};
 
   if (state.kvs.hasOwnProperty(key)) {
     let key_last_written = state.kvs[key].last_written_vc;
     // if key_last_written is newer/same/concurrent, return value
     // and causal metadata = max_vc(causal_metadata, key_last_written)
     if (compare_vc(key_last_written, causal_metadata) != "OLDER") {
-
       const new_causal_metadata = max_vc(causal_metadata, key_last_written);
 
       // If most recent write of key's value was deleting it
@@ -97,12 +104,17 @@ router.get("/:key", (req, res) => {
 
       return;
     }
-
   }
 
   // if total_vc is newer or same
-  const total_vc_to_causal_metadata = compare_vc(state.total_vc, causal_metadata);
-  if (total_vc_to_causal_metadata == "NEWER" || total_vc_to_causal_metadata == "EQUAL") {
+  const total_vc_to_causal_metadata = compare_vc(
+    state.total_vc,
+    causal_metadata
+  );
+  if (
+    total_vc_to_causal_metadata == "NEWER" ||
+    total_vc_to_causal_metadata == "EQUAL"
+  ) {
     // If key was never written to, send 404 and client's VC back
     if (!state.kvs.hasOwnProperty(key)) {
       res.status(404).json({ "causal-metadata": causal_metadata });
@@ -132,7 +144,6 @@ router.get("/:key", (req, res) => {
 
 // DELETE endpoint
 router.delete("/:key", (req, res) => {
-
   // if we're uninitialized, return 418
   if (!state.initialized) {
     res.status(418).json({ error: "uninitialized" });
@@ -147,13 +158,15 @@ router.delete("/:key", (req, res) => {
     return;
   }
 
-  let causal_metadata = req.body["causal-metadata"] ? req.body["causal-metadata"] : {};
+  let causal_metadata = req.body["causal-metadata"]
+    ? req.body["causal-metadata"]
+    : {};
 
   // last_written_vc = max of current thc and client, plus 1 for current write
   if (state.total_vc.hasOwnProperty(full_address)) {
-    state.total_vc[full_address] += 1; 
+    state.total_vc[full_address] += 1;
   } else {
-    state.total_vc[full_address] = 1; 
+    state.total_vc[full_address] = 1;
   }
 
   const last_written_vc = max_vc(causal_metadata, state.total_vc);
@@ -170,7 +183,7 @@ router.delete("/:key", (req, res) => {
     last_written_vc,
     value: null,
     timestamp: Date.now(),
-  }
+  };
 
   // BROADCAST KVS + T_VC TO ALL OTHER REPLICAS IN VIEW
   broadcast_kvs();
@@ -192,19 +205,33 @@ router.get("/", (req, res) => {
     return;
   }
 
-  let causal_metadata = req.body["causal-metadata"] ? req.body["causal-metadata"] : {};
+  let causal_metadata = req.body["causal-metadata"]
+    ? req.body["causal-metadata"]
+    : {};
 
   // if total_vc is newer or same, we can return our keys
-  const total_vc_to_causal_metadata = compare_vc(state.total_vc, causal_metadata);
+  const total_vc_to_causal_metadata = compare_vc(
+    state.total_vc,
+    causal_metadata
+  );
   // console.log(total_vc_to_causal_metadata);
-  if (total_vc_to_causal_metadata == "NEWER" || total_vc_to_causal_metadata == "EQUAL") {
+  if (
+    total_vc_to_causal_metadata == "NEWER" ||
+    total_vc_to_causal_metadata == "EQUAL"
+  ) {
     let count = 0;
     const keys = [];
 
     for (const key in state.kvs) {
-      const key_to_total_vc = compare_vc(state.kvs[key].last_written_vc, state.total_vc);
+      const key_to_total_vc = compare_vc(
+        state.kvs[key].last_written_vc,
+        state.total_vc
+      );
       // if the key's value is non-empty and within our total_vc, add it
-      if (state.kvs[key].value != null && (key_to_total_vc == "EQUAL" || key_to_total_vc == "OLDER")) {
+      if (
+        state.kvs[key].value != null &&
+        (key_to_total_vc == "EQUAL" || key_to_total_vc == "OLDER")
+      ) {
         keys.push(key);
         count++;
       }
