@@ -290,7 +290,7 @@ class TestAssignment1(unittest.TestCase):
 
     def test_eventual_consistency_partition_1(self):
         # initialize the view
-        new_view_addresses = view_addresses[0:2];
+        new_view_addresses = view_addresses;
         res = put(
                 kvs_view_admin_url(ports[0], hosts[0]), 
                 put_view_body(new_view_addresses)
@@ -346,12 +346,12 @@ class TestAssignment1(unittest.TestCase):
         val0 = body0['val']
         self.assertEqual(val0, vals[0], 'Bad value')
 
-
         res1 = get(kvs_data_key_url(keys[1], ports[0], hosts[0]), causal_metadata_body())
         body1 = res1.json();
         self.assertIn('val', body1, 'No value')
         val1 = body1['val']
         self.assertEqual(val1, vals[1], 'Bad value')
+
 
         res0 = get(kvs_data_key_url(keys[0], ports[1], hosts[1]), causal_metadata_body())
         body0 = res0.json();
@@ -359,8 +359,20 @@ class TestAssignment1(unittest.TestCase):
         val0 = body0['val']
         self.assertEqual(val0, vals[0], 'Bad value')
 
-
         res1 = get(kvs_data_key_url(keys[1], ports[1], hosts[1]), causal_metadata_body())
+        body1 = res1.json();
+        self.assertIn('val', body1, 'No value')
+        val1 = body1['val']
+        self.assertEqual(val1, vals[1], 'Bad value')
+
+
+        res0 = get(kvs_data_key_url(keys[0], ports[2], hosts[2]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, vals[0], 'Bad value')
+
+        res1 = get(kvs_data_key_url(keys[1], ports[2], hosts[2]), causal_metadata_body())
         body1 = res1.json();
         self.assertIn('val', body1, 'No value')
         val1 = body1['val']
@@ -368,7 +380,7 @@ class TestAssignment1(unittest.TestCase):
 
     def test_eventual_consistency_partition_2(self):
         # initialize the view
-        new_view_addresses = view_addresses[0:2];
+        new_view_addresses = view_addresses;
         res = put(
                 kvs_view_admin_url(ports[0], hosts[0]), 
                 put_view_body(new_view_addresses)
@@ -390,6 +402,12 @@ class TestAssignment1(unittest.TestCase):
             put_partition_body([view_addresses[1]])
         )
 
+        # create a partition for replica 2
+        res = put(
+            partition_url(ports[2], hosts[2]), 
+            put_partition_body([view_addresses[2]])
+        )
+
         # ----------------- End Create Partitions --------------------
 
         # ----------------- Start Put Data --------------------
@@ -400,10 +418,10 @@ class TestAssignment1(unittest.TestCase):
         cm1 = causal_metadata_from_body(res.json());
 
         # put val in replica 2
-        res = put(kvs_data_key_url(keys[1], ports[1], hosts[1]),
+        res = put(kvs_data_key_url(keys[0], ports[1], hosts[1]),
                   put_val_body(vals[1]))
-
         cm2 = causal_metadata_from_body(res.json());
+
         # ----------------- End Put Data --------------------
 
 
@@ -411,6 +429,7 @@ class TestAssignment1(unittest.TestCase):
         
         delete(partition_url(ports[0], hosts[0]));
         delete(partition_url(ports[1], hosts[1]));
+        delete(partition_url(ports[2], hosts[2]));
 
         # ----------------- End Delete Partition --------------------
 
@@ -422,27 +441,18 @@ class TestAssignment1(unittest.TestCase):
         body0 = res0.json();
         self.assertIn('val', body0, 'No value')
         val0 = body0['val']
-        self.assertEqual(val0, vals[0], 'Bad value')
-
-
-        res1 = get(kvs_data_key_url(keys[1], ports[0], hosts[0]), causal_metadata_body())
-        body1 = res1.json();
-        self.assertIn('val', body1, 'No value')
-        val1 = body1['val']
-        self.assertEqual(val1, vals[1], 'Bad value')
 
         res0 = get(kvs_data_key_url(keys[0], ports[1], hosts[1]), causal_metadata_body())
         body0 = res0.json();
         self.assertIn('val', body0, 'No value')
-        val0 = body0['val']
-        self.assertEqual(val0, vals[0], 'Bad value')
+        val1 = body0['val']
+        self.assertEqual(val0, val1, 'Bad value')
 
-
-        res1 = get(kvs_data_key_url(keys[1], ports[1], hosts[1]), causal_metadata_body())
+        res1 = get(kvs_data_key_url(keys[0], ports[2], hosts[2]), causal_metadata_body())
         body1 = res1.json();
         self.assertIn('val', body1, 'No value')
-        val1 = body1['val']
-        self.assertEqual(val1, vals[1], 'Bad value')
+        val2 = body1['val']
+        self.assertEqual(val1, val2, 'Bad value')
 
 if __name__ == '__main__':
     unittest.main(argv=['first-arg-is-ignored'], exit=False)
