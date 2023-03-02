@@ -57,10 +57,11 @@ router.put("/:key", (req, res) => {
     last_written_vc,
     value: val,
     timestamp: Date.now(),
-  };
+  }
 
   // BROADCAST KVS + T_VC TO ALL OTHER REPLICAS IN VIEW
   broadcast_kvs();
+
 
   res.status(response_code).json({ "causal-metadata": last_written_vc });
 });
@@ -162,6 +163,7 @@ router.get("/:key", (req, res) => {
       clearInterval(intervalId);
     }
 
+    i = i + 1;
   }, 5000);
 
 });

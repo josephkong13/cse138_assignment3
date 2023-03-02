@@ -500,14 +500,14 @@ class TestAssignment1(unittest.TestCase):
 
         # put val in replica 2
         res = put(kvs_data_key_url("x", ports[1], hosts[1]),
-                  put_val_body("2", causal_metadata_body(cm1)))
+                  put_val_body("2", cm1))
 
         res = put(kvs_data_key_url("y", ports[1], hosts[1]),
-                  put_val_body("1", causal_metadata_body()))
+                  put_val_body("1"))
         cm2 = causal_metadata_from_body(res.json());
 
         res = put(kvs_data_key_url("y", ports[0], hosts[0]),
-                  put_val_body("2", causal_metadata_body(cm2)))
+                  put_val_body("2", cm2))
 
         # ----------------- End Put Data --------------------
 
@@ -562,6 +562,119 @@ class TestAssignment1(unittest.TestCase):
         self.assertIn('val', body0, 'No value')
         val0 = body0['val']
         self.assertEqual(val0, "2");
+
+    def test_non_healing_network_partition(self):
+        # this tests whether it hangs if there's a down node in the view
+
+        # initialize the view
+        new_view_addresses = [ view_addresses[0], "10.10.0.6:9999" ];
+        res = put(
+                kvs_view_admin_url(ports[0], hosts[0]), 
+                put_view_body(new_view_addresses)
+        );
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
+
+        # put value to replica
+        res = put(kvs_data_key_url("x", ports[0], hosts[0]),
+                  put_val_body("1"))
+        cm1 = causal_metadata_from_body(res.json());
+
+        # get value from replica
+        res0 = get(kvs_data_key_url("x", ports[0], hosts[0]), causal_metadata_body(cm1))
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "1");
+
+    def test_fuck_you_alice(self):
+        # initialize the view
+        new_view_addresses = view_addresses;
+        res = put(
+                kvs_view_admin_url(ports[0], hosts[0]), 
+                put_view_body(new_view_addresses)
+        );
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
+        
+
+        # ----------------- Start Create Partitions --------------------
+
+        # create a partition for replica 1
+        res = put(
+            partition_url(ports[0], hosts[0]), 
+            put_partition_body([view_addresses[0]])
+        )
+
+        # create a partition for replica 2
+        res = put(
+            partition_url(ports[1], hosts[1]), 
+            put_partition_body([view_addresses[1]])
+        )
+
+        # create a partition for replica 3/4
+        res = put(
+            partition_url(ports[2], hosts[2]), 
+            put_partition_body([view_addresses[2], view_addresses[3]])
+        )
+
+        res = put(
+            partition_url(ports[3], hosts[3]), 
+            put_partition_body([view_addresses[2], view_addresses[3]])
+        )
+
+        # ----------------- End Create Partitions --------------------
+
+        # ----------------- Start Put Data --------------------
+
+        # put val in replica 1
+        res = put(kvs_data_key_url("x", ports[0], hosts[0]),
+                  put_val_body("1"))
+        cm1 = causal_metadata_from_body(res.json());
+
+        res0 = get(kvs_data_key_url("x", ports[0], hosts[0]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "1");
+
+        cm2 = causal_metadata_from_body(body0);
+
+        # put val in replica 2
+        res = put(
+                kvs_data_key_url("y", ports[1], hosts[1]),
+                put_val_body("2", cm2)
+        )
+
+        res0 = get(kvs_data_key_url("y", ports[1], hosts[1]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "2");
+
+        cm2 = causal_metadata_from_body(body0);
+
+        res0 = get(kvs_data_key_url("x", ports[1], hosts[1]), causal_metadata_body(cm2))
+        self.assertEqual(res0.status_code, 500, "Should've stalled");
+
+        # ----------------- End Put Data --------------------
+
+
+        # ----------------- Start Delete Partition --------------------
+        
+        delete(partition_url(ports[0], hosts[0]));
+        delete(partition_url(ports[1], hosts[1]));
+        delete(partition_url(ports[2], hosts[2]));
+        delete(partition_url(ports[3], hosts[3]));
+
+        # ----------------- End Delete Partition --------------------
+
+        time.sleep(5);
+
+        res0 = get(kvs_data_key_url("x", ports[1], hosts[1]), causal_metadata_body(cm2))
+        body0 = res0.json();
+        self.assertIn('val', body0, "No value");
+        val1 = body0['val'];
+        self.assertEqual(val1, "1", "error not in kvs");
+
 
 if __name__ == '__main__':
     unittest.main(argv=['first-arg-is-ignored'], exit=False)
