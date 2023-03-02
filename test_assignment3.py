@@ -82,6 +82,9 @@ def kvs_data_key_url(key, port, host='localhost'):
 def kvs_data_url(port, host='localhost'):
     return f'{make_base_url(port, host)}/kvs/data'
 
+def partition_url(port, host='localhost', protocal='http'):
+    return f'{make_base_url(port, host)}/kvs/admin/partition'
+
 
 # Bodies:
 
@@ -95,6 +98,8 @@ def nodes_list(ports, hosts=None):
 def put_view_body(addresses):
     return {'view': addresses}
 
+def put_partition_body(partition):
+    return { 'partition': partition }
 
 def causal_metadata_body(cm={}):
     return {causal_metadata_key: cm}
@@ -116,6 +121,7 @@ class TestAssignment1(unittest.TestCase):
         # Uninitialize all nodes:
         for h, p in zip(hosts, ports):
             delete(kvs_view_admin_url(p, h))
+            delete(partition_url(p, h))
 
     def test_uninitialized_get_key(self):
         for h, p in zip(hosts, ports):
@@ -282,6 +288,68 @@ class TestAssignment1(unittest.TestCase):
                       msg='Key not found in json response')
         self.assertEqual(body['keys'], keys[:2], 'Bad keys')
 
+    def test_eventual_consistency_partition_1(self):
+        # initialize the view
+        new_view_addresses = view_addresses[0:2];
+        res = put(
+                kvs_view_admin_url(ports[0], hosts[0]), 
+                put_view_body(new_view_addresses)
+        );
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
+        
+
+        # ----------------- Start Create Partitions --------------------
+
+        # create a partition for replica 1
+        res = put(
+            partition_url(ports[0], hosts[0]), 
+            put_partition_body([view_addresses[0]])
+        )
+
+        # create a partition for replica 2
+        res = put(
+            partition_url(ports[1], hosts[1]), 
+            put_partition_body([view_addresses[1]])
+        )
+
+        # ----------------- End Create Partitions --------------------
+
+        # ----------------- Start Put Data --------------------
+
+        # put val in replica 1
+        res = put(kvs_data_key_url(keys[0], ports[1], hosts[1]),
+                  put_val_body(vals[0]))
+
+        # put val in replica 2
+        res = put(kvs_data_key_url(keys[0], ports[1], hosts[1]),
+                  put_val_body(vals[1]))
+
+        # cm = causal_metadata_from_body(res.json());
+        # ----------------- End Put Data --------------------
+
+
+        # ----------------- Start Delete Partition --------------------
+        
+        delete(partition_url(ports[0], hosts[0]));
+        delete(partition_url(ports[0], hosts[0]));
+
+        # ----------------- End Delete Partition --------------------
+
+        # ----------------- Test Consistency --------------------
+
+        res = get(kvs_data_key_url(keys[0], ports[0], hosts[0]))
+        body = res.json();
+        self.assertIn('val', body, 'No value')
+        val1 = body['val']
+        self.assertIn(val1, {vals[0], vals[1]}, 'Bad value')
+
+        res = get(kvs_data_key_url(keys[0], ports[1], hosts[1]))
+        body = res.json();
+        self.assertIn('val', body, 'No value')
+        val2 = body['val']
+        self.assertIn(val2, {vals[0], vals[1]}, 'Bad value')
+
+        self.assertEqual(val1, val2, 'Values not equal, inconsistency');
 
 if __name__ == '__main__':
     unittest.main(argv=['first-arg-is-ignored'], exit=False)
