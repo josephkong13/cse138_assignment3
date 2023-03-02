@@ -15,6 +15,7 @@ const state = require("./state.js");
 const viewchange = require("./api/viewchange");
 const kvs = require("./api/kvs");
 const { gossip } = require("./api/gossip");
+const partition_test = require("./api/partition_test");
 const { malformed_check, port } = require("./address");
 
 // Middleware--
@@ -34,6 +35,7 @@ app.use(express.json());
 app.use("/kvs/admin/view", viewchange);
 app.use("/kvs/data", kvs);
 app.use("/kvs/gossip", gossip);
+app.use("/kvs/admin/partition", partition_test);
 
 // End middleware--
 

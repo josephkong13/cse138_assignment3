@@ -6,6 +6,8 @@ const state = {
   kvs: {},
   // ip: clock_value (number of write operations this IP has done)
   total_vc: {},
+  partition_testing: false,
+  partition: []
 };
 
 module.exports = state;

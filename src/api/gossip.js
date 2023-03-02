@@ -8,7 +8,7 @@ const { full_address } = require("../address");
 // add a function for other_stuff too
 const broadcast_kvs = function () {
   state.view.forEach((address) => {
-    if (address != full_address) {
+    if (address != full_address && (!state.partition_testing || state.partition.contains(address))) {
       axios({
         url: `http://${address}/kvs/gossip`,
         method: "put",
