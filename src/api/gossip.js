@@ -13,7 +13,7 @@ const broadcast_kvs = function () {
         url: `http://${address}/kvs/gossip`,
         method: "put",
         data: { kvs: state.kvs, total_vc: state.total_vc },
-      });
+      }).catch(err => console.log(err));
     }
   });
 };
