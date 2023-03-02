@@ -1,0 +1,34 @@
+Causal dependency tracking:
+
+    - Each replica keep track of the number of writes each replica has done that they are aware of in a vector clock. We call this the replica's total_vc.
+
+    - Any write/read a client does includes their causal_metadata, the initial one being an empty object.
+
+    - When a client writes (PUT/DELETE) a key-value pair (k, v), the replica that receives their request increments their IP in the total_vc.
+        - The replica then writes the k, v into it's kvs and returns the element-wise max of their total_vc and the client's causal metadata, called last_written_vc.
+            - The replica is considered to have written key k with value v at the "time" last_written_vc. 
+            - last_written_vc causally depends on all other keys the replica has written (through total_vc), and anything the client has written/read
+                - Incrementing our total_vc and then taking the max with causal_metadata gives us a bigger vector clock value than anything the key-value causally depends on
+        - The key value pair (k, v) is stored with the last_written_vc along with the timestamp that the server received this write request.
+    
+    - When a client reads (GET) a key (k), the replica that receives their request:
+        - First compares the key k's last_written value with the client's causal_metadata (if key k exists in the kvs)
+            - If k's last_written_vc isn't older (so newer/equal/concurrent) to the causal_metadata, then k's value couldn't have depended on anything the client has seen.
+                - So we can return k's value, along with the element-wise max of that key's last_written_vc and the causal_metadata
+                    - last_written_vc causally depends on all other keys the replica has written since the writing of key k, and anything the client has written/read
+        - If the replica wasn't able to return a causally consistent value yet, it compares it's total_vc to the causal_metadata
+            - If k's total_vc is equal on newer than the causal_metadata, we can return k's value since the replica is aware of every write operation the causal_metadata depended on
+                - And thus has the newest version of key k that is potentially visible to the client.
+        - If the replica still wasn't able to return a causally consistent value, it stalls for 20 seconds and waits to see if it can return one (receiving an update from other replicas through gossip)
+            - And still, if it isn't able to return a causally consistent value, it gives up and returns 500
+
+Gossip:
+
+    - Periodically (every 5 seconds) and on every write, the replica broadcasts its own kvs and total_vc to all other replicas
+
+    - For a replica to merge it's kvs with a kvs it receives, it compares all common keys and keep the value with the newer associated last_written_vc
+        - When the last_written_vc's are concurrent, the replica uses the timestamp to break the tie, and keeps the value and last_written_vc with the later timestamp
+    - The replica also takes the element-wise max of the total_vc it received and its own, since it is now aware of all writes up to that new clock value.
+        - I.e. When a replica with total_vc [5, 0] receives a kvs and total_vc with [0, 5], it is aware of [5, 5] writes after merging the kvs's.
+
+We did not implement any mechanisms to detect whether a replica is down.

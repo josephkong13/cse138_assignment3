@@ -286,7 +286,7 @@ class TestAssignment1(unittest.TestCase):
         self.assertEqual(body['count'], 2, 'Bad count')
         self.assertIn('keys', body,
                       msg='Key not found in json response')
-        self.assertEqual(body['keys'], keys[:2], 'Bad keys')
+        self.assertEqual(set(body['keys']), set(keys[:2]), 'Bad keys')
 
     def test_eventual_consistency_partition_1(self):
         # initialize the view
@@ -586,6 +586,7 @@ class TestAssignment1(unittest.TestCase):
         val0 = body0['val']
         self.assertEqual(val0, "1");
 
+    # causally consistent write, then read
     def test_fuck_you_alice(self):
         # initialize the view
         new_view_addresses = view_addresses;
@@ -675,6 +676,155 @@ class TestAssignment1(unittest.TestCase):
         val1 = body0['val'];
         self.assertEqual(val1, "1", "error not in kvs");
 
+    def test_causal_get_keys(self):
+        # initialize the view
+        new_view_addresses = view_addresses;
+        res = put(
+                kvs_view_admin_url(ports[0], hosts[0]), 
+                put_view_body(new_view_addresses)
+        );
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
+        
+
+        # ----------------- Start Create Partitions --------------------
+
+        # create a partition for replica 1
+        res = put(
+            partition_url(ports[0], hosts[0]), 
+            put_partition_body([view_addresses[0]])
+        )
+
+        # create a partition for replica 2
+        res = put(
+            partition_url(ports[1], hosts[1]), 
+            put_partition_body([view_addresses[1]])
+        )
+
+        # create a partition for replica 3/4
+        res = put(
+            partition_url(ports[2], hosts[2]), 
+            put_partition_body([view_addresses[2], view_addresses[3]])
+        )
+
+        res = put(
+            partition_url(ports[3], hosts[3]), 
+            put_partition_body([view_addresses[2], view_addresses[3]])
+        )
+
+        # ----------------- End Create Partitions --------------------
+
+        # ----------------- Start Put Data --------------------
+
+        # put val in replica 1
+        res = put(kvs_data_key_url("x", ports[0], hosts[0]),
+                  put_val_body("1"))
+        cm1 = causal_metadata_from_body(res.json());
+
+        res0 = get(kvs_data_key_url("x", ports[0], hosts[0]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "1");
+
+        cm2 = causal_metadata_from_body(body0);
+
+        # put val in replica 2
+        res = put(
+                kvs_data_key_url("y", ports[1], hosts[1]),
+                put_val_body("2", cm2)
+        )
+
+        res0 = get(kvs_data_key_url("y", ports[1], hosts[1]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "2");
+
+        cm2 = causal_metadata_from_body(body0);
+
+        res = get(kvs_data_url(ports[1], hosts[1]), causal_metadata_body(cm2))
+        self.assertEqual(res.status_code, 500, 'Bad status code')
+
+        # ----------------- End Put Data --------------------
+
+
+        # ----------------- Start Delete Partition --------------------
+        
+        delete(partition_url(ports[0], hosts[0]));
+        delete(partition_url(ports[1], hosts[1]));
+        delete(partition_url(ports[2], hosts[2]));
+        delete(partition_url(ports[3], hosts[3]));
+
+        # ----------------- End Delete Partition --------------------
+
+        time.sleep(5);
+
+        res = get(kvs_data_url(ports[1], hosts[1]), causal_metadata_body(cm2))
+        self.assertEqual(res.status_code, 200, 'Bad status code')
+        body = res.json()
+        self.assertIn('count', body,
+                      msg='Key not found in json response')
+        self.assertEqual(body['count'], 2, 'Bad count')
+        self.assertIn('keys', body,
+                      msg='Key not found in json response')
+        self.assertEqual(set(body['keys']), set(["x", "y"]), 'Bad keys')
+
+    # Test that new nodes in the cluster get updates key-values
+    def test_viewchange_update_kvs(self):
+        # initialize the view
+        new_view_addresses = view_addresses;
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            put_view_body(new_view_addresses[:2])
+        );
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
+
+        res = put(
+            kvs_data_key_url("x", ports[0], hosts[0]),
+            put_val_body("420")
+        )
+        self.assertEqual(res.status_code, 201, 'Bad status code')
+
+        res = put(
+            kvs_data_key_url("y", ports[1], hosts[1]),
+            put_val_body("69")
+        )
+        self.assertEqual(res.status_code, 201, 'Bad status code')
+
+        # Wait for replicas to sync up before changing view
+        time.sleep(5)
+
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            put_view_body(new_view_addresses)
+        ); 
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
+
+        # Wait for new replicas to sync up
+        time.sleep(5)
+
+        # Make sure new replicas in view are caught up
+        res0 = get(kvs_data_key_url("x", ports[2], hosts[2]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
+        res0 = get(kvs_data_key_url("y", ports[2], hosts[2]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "69");
+
+        res0 = get(kvs_data_key_url("x", ports[3], hosts[3]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
+        res0 = get(kvs_data_key_url("y", ports[3], hosts[3]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "69");
 
 if __name__ == '__main__':
     unittest.main(argv=['first-arg-is-ignored'], exit=False)
