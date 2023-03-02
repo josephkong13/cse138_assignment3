@@ -154,7 +154,7 @@ router.get("/:key", (req, res) => {
     // basically run this method again
     sent = attempt_send_key();
     
-    if(sent || i >= 4) {
+    if(sent || i >= 3) {
       
       if(!sent) {
         res.status(500).json({ "error": "timed out while waiting for depended updates" });
@@ -235,43 +235,67 @@ router.get("/", (req, res) => {
     ? req.body["causal-metadata"]
     : {};
 
-  // if total_vc is newer or same, we can return our keys
-  const total_vc_to_causal_metadata = compare_vc(
-    state.total_vc,
-    causal_metadata
-  );
-  // console.log(total_vc_to_causal_metadata);
-  if (
-    total_vc_to_causal_metadata == "NEWER" ||
-    total_vc_to_causal_metadata == "EQUAL"
-  ) {
-    let count = 0;
-    const keys = [];
+  const attempt_send_kvs = () => {
+    // if total_vc is newer or same, we can return our keys
+    const total_vc_to_causal_metadata = compare_vc(
+      state.total_vc,
+      causal_metadata
+    );
 
-    for (const key in state.kvs) {
-      const key_to_total_vc = compare_vc(
-        state.kvs[key].last_written_vc,
-        state.total_vc
-      );
-      // if the key's value is non-empty and within our total_vc, add it
-      if (
-        state.kvs[key].value != null &&
-        (key_to_total_vc == "EQUAL" || key_to_total_vc == "OLDER")
-      ) {
-        keys.push(key);
-        count++;
+    // console.log(total_vc_to_causal_metadata);
+    if (
+      total_vc_to_causal_metadata == "NEWER" ||
+      total_vc_to_causal_metadata == "EQUAL"
+    ) {
+      let count = 0;
+      const keys = [];
+
+      for (const key in state.kvs) {
+        const key_to_total_vc = compare_vc(
+          state.kvs[key].last_written_vc,
+          state.total_vc
+        );
+        // if the key's value is non-empty and within our total_vc, add it
+        if (
+          state.kvs[key].value != null &&
+          (key_to_total_vc == "EQUAL" || key_to_total_vc == "OLDER")
+        ) {
+          keys.push(key);
+          count++;
+        }
       }
+
+      res.status(200).json({ "causal-metadata": state.total_vc, count, keys });
+
+      return true;
     }
 
-    res.status(200).json({ "causal-metadata": state.total_vc, count, keys });
-
-    return;
+    return false;
   }
 
-  // TODO: otherwise, if total_vc is concurrent or older
+  let sent = attempt_send_kvs();
 
-  // stall for 20 secs
-  res.status(500).json({ error: "TODO: should stall here" });
+  if(sent) { return; }
+
+  // stalls, checks every 5s to see if it has updated due to gossip
+  // and then tries to resend
+  let i = 0;
+  const intervalId = setInterval(() => {
+    
+    // basically run this method again
+    sent = attempt_send_kvs();
+    
+    if(sent || i >= 3) {
+      
+      if(!sent) {
+        res.status(500).json({ "error": "timed out while waiting for depended updates" });
+      }
+
+      clearInterval(intervalId);
+    }
+
+    i = i + 1;
+  }, 5000);
 });
 
 module.exports = router;
