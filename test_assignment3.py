@@ -12,7 +12,16 @@ import time
 import unittest
 
 import requests  # pip install requests
+import subprocess
 
+def create_partition():
+    subprocess.call(['bash', './make_partition.sh', '1', '2', '3', '4'])
+    subprocess.call(['bash', './make_partition.sh', '2', '1', '3', '4'])
+    subprocess.call(['bash', './make_partition.sh', '3', '1', '2', '4'])
+    subprocess.call(['bash', './make_partition.sh', '4', '1', '2', '3'])
+
+def remove_partition():
+    subprocess.call(['bash', './remove_partition.sh'])
 
 # Setup:
 
@@ -82,12 +91,11 @@ def kvs_data_key_url(key, port, host='localhost'):
 def kvs_data_url(port, host='localhost'):
     return f'{make_base_url(port, host)}/kvs/data'
 
-def partition_url(port, host='localhost', protocal='http'):
-    return f'{make_base_url(port, host)}/kvs/admin/partition'
+# def partition_url(port, host='localhost', protocal='http'):
+#     return f'{make_base_url(port, host)}/kvs/admin/partition'
 
 
 # Bodies:
-
 
 def nodes_list(ports, hosts=None):
     if hosts is None:
@@ -118,9 +126,11 @@ def put_val_body(val, cm=None):
 
 class TestAssignment1(unittest.TestCase):
     def setUp(self):
+        remove_partition()
+        time.sleep(10) # this is necessary... with partitioning i think some messages get stuck in transit, and the messages from one test get sent during the next test. lmao.
         # Uninitialize all nodes:
         for h, p in zip(hosts, ports):
-            delete(partition_url(p, h))
+            # delete(partition_url(p, h))
             delete(kvs_view_admin_url(p, h))
 
     def test_uninitialized_get_key(self):
@@ -300,17 +310,8 @@ class TestAssignment1(unittest.TestCase):
 
         # ----------------- Start Create Partitions --------------------
 
-        # create a partition for replica 1
-        res = put(
-            partition_url(ports[0], hosts[0]), 
-            put_partition_body([view_addresses[0]])
-        )
-
-        # create a partition for replica 2
-        res = put(
-            partition_url(ports[1], hosts[1]), 
-            put_partition_body([view_addresses[1]])
-        )
+        create_partition()
+        time.sleep(1)
 
         # ----------------- End Create Partitions --------------------
 
@@ -330,9 +331,7 @@ class TestAssignment1(unittest.TestCase):
 
 
         # ----------------- Start Delete Partition --------------------
-        
-        delete(partition_url(ports[0], hosts[0]));
-        delete(partition_url(ports[1], hosts[1]));
+        remove_partition()
 
         # ----------------- End Delete Partition --------------------
 
@@ -390,23 +389,8 @@ class TestAssignment1(unittest.TestCase):
 
         # ----------------- Start Create Partitions --------------------
 
-        # create a partition for replica 1
-        res = put(
-            partition_url(ports[0], hosts[0]), 
-            put_partition_body([view_addresses[0]])
-        )
-
-        # create a partition for replica 2
-        res = put(
-            partition_url(ports[1], hosts[1]), 
-            put_partition_body([view_addresses[1]])
-        )
-
-        # create a partition for replica 2
-        res = put(
-            partition_url(ports[2], hosts[2]), 
-            put_partition_body([view_addresses[2]])
-        )
+        create_partition()
+        time.sleep(1)
 
         # ----------------- End Create Partitions --------------------
 
@@ -426,10 +410,8 @@ class TestAssignment1(unittest.TestCase):
 
 
         # ----------------- Start Delete Partition --------------------
-        
-        delete(partition_url(ports[0], hosts[0]));
-        delete(partition_url(ports[1], hosts[1]));
-        delete(partition_url(ports[2], hosts[2]));
+
+        remove_partition()
 
         # ----------------- End Delete Partition --------------------
 
@@ -466,28 +448,9 @@ class TestAssignment1(unittest.TestCase):
 
         # ----------------- Start Create Partitions --------------------
 
-        # create a partition for replica 1
-        res = put(
-            partition_url(ports[0], hosts[0]), 
-            put_partition_body([view_addresses[0]])
-        )
+        create_partition()
 
-        # create a partition for replica 2
-        res = put(
-            partition_url(ports[1], hosts[1]), 
-            put_partition_body([view_addresses[1]])
-        )
-
-        # create a partition for replica 3/4
-        res = put(
-            partition_url(ports[2], hosts[2]), 
-            put_partition_body([view_addresses[2], view_addresses[3]])
-        )
-
-        res = put(
-            partition_url(ports[3], hosts[3]), 
-            put_partition_body([view_addresses[2], view_addresses[3]])
-        )
+        time.sleep(1)
 
         # ----------------- End Create Partitions --------------------
 
@@ -513,11 +476,8 @@ class TestAssignment1(unittest.TestCase):
 
 
         # ----------------- Start Delete Partition --------------------
-        
-        delete(partition_url(ports[0], hosts[0]));
-        delete(partition_url(ports[1], hosts[1]));
-        delete(partition_url(ports[2], hosts[2]));
-        delete(partition_url(ports[3], hosts[3]));
+
+        remove_partition()
 
         # ----------------- End Delete Partition --------------------
 
@@ -599,28 +559,9 @@ class TestAssignment1(unittest.TestCase):
 
         # ----------------- Start Create Partitions --------------------
 
-        # create a partition for replica 1
-        res = put(
-            partition_url(ports[0], hosts[0]), 
-            put_partition_body([view_addresses[0]])
-        )
+        create_partition()
 
-        # create a partition for replica 2
-        res = put(
-            partition_url(ports[1], hosts[1]), 
-            put_partition_body([view_addresses[1]])
-        )
-
-        # create a partition for replica 3/4
-        res = put(
-            partition_url(ports[2], hosts[2]), 
-            put_partition_body([view_addresses[2], view_addresses[3]])
-        )
-
-        res = put(
-            partition_url(ports[3], hosts[3]), 
-            put_partition_body([view_addresses[2], view_addresses[3]])
-        )
+        time.sleep(1)
 
         # ----------------- End Create Partitions --------------------
 
@@ -660,11 +601,8 @@ class TestAssignment1(unittest.TestCase):
 
 
         # ----------------- Start Delete Partition --------------------
-        
-        delete(partition_url(ports[0], hosts[0]));
-        delete(partition_url(ports[1], hosts[1]));
-        delete(partition_url(ports[2], hosts[2]));
-        delete(partition_url(ports[3], hosts[3]));
+
+        remove_partition()
 
         # ----------------- End Delete Partition --------------------
 
@@ -688,28 +626,9 @@ class TestAssignment1(unittest.TestCase):
 
         # ----------------- Start Create Partitions --------------------
 
-        # create a partition for replica 1
-        res = put(
-            partition_url(ports[0], hosts[0]), 
-            put_partition_body([view_addresses[0]])
-        )
+        create_partition()
 
-        # create a partition for replica 2
-        res = put(
-            partition_url(ports[1], hosts[1]), 
-            put_partition_body([view_addresses[1]])
-        )
-
-        # create a partition for replica 3/4
-        res = put(
-            partition_url(ports[2], hosts[2]), 
-            put_partition_body([view_addresses[2], view_addresses[3]])
-        )
-
-        res = put(
-            partition_url(ports[3], hosts[3]), 
-            put_partition_body([view_addresses[2], view_addresses[3]])
-        )
+        time.sleep(1)
 
         # ----------------- End Create Partitions --------------------
 
@@ -749,11 +668,13 @@ class TestAssignment1(unittest.TestCase):
 
 
         # ----------------- Start Delete Partition --------------------
+
+        remove_partition()
         
-        delete(partition_url(ports[0], hosts[0]));
-        delete(partition_url(ports[1], hosts[1]));
-        delete(partition_url(ports[2], hosts[2]));
-        delete(partition_url(ports[3], hosts[3]));
+        # delete(partition_url(ports[0], hosts[0]));
+        # delete(partition_url(ports[1], hosts[1]));
+        # delete(partition_url(ports[2], hosts[2]));
+        # delete(partition_url(ports[3], hosts[3]));
 
         # ----------------- End Delete Partition --------------------
 
