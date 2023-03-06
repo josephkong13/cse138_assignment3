@@ -14,7 +14,7 @@ const broadcast_kvs = function () {
         method: "put",
         data: { kvs: state.kvs, 
                 total_vc: state.total_vc, 
-                view_num: state.view_num },
+                view_timestamp: state.view_timestamp },
       }).catch(err => {});
     }
   });
@@ -41,8 +41,8 @@ gossip.put("/", (req, res) => {
     !req.body ||
     !req.body.hasOwnProperty("kvs") ||
     !req.body.hasOwnProperty("total_vc") ||
-    !req.body.hasOwnProperty("view_num") ||
-    req.body.view_num != state.view_num
+    !req.body.hasOwnProperty("view_timestamp") ||
+    req.body.view_timestamp != state.view_timestamp
   ) {
     res.status(400).json({ error: "bad request" });
     return;

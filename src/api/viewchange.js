@@ -21,22 +21,23 @@ router.put("/", (req, res) => {
     return;
   }
 
-  // If we're the replica getting the initial view change request, increment our view_num
+  // If we're the replica getting the initial view change request, set our view_timestamp
+  // to the current time
   // the view that the admin requested is now associated with this number.
-  if (!req.body.hasOwnProperty("view_num")) {
-    state.view_num = state.view_num + 1;
+  if (!req.body.hasOwnProperty("view_timestamp")) {
+    state.view_timestamp = Date.now();
   } 
 
-  if (req.body.hasOwnProperty("view_num")) {
-    // If we've already updated our view to this, our views are the same. return early.
-    if (state.view_num >= req.body.view_num) {
+  if (req.body.hasOwnProperty("view_timestamp")) {
+    // If we've already updated our view to this, our views are the same (or we received an older, stale view). return early.
+    if (state.view_timestamp >= req.body.view_timestamp) {
       // console.log("SAME VIEW");
       res.status(200).send();
       return;
     } 
-    // Otherwise, our view_num becomes the view_num we received
+    // Otherwise, our view_timestamp becomes the view_timestamp we received
     else {
-      state.view_num = req.body.view_num;
+      state.view_timestamp = req.body.view_timestamp;
     }
   }
 
@@ -76,7 +77,7 @@ router.put("/", (req, res) => {
         data: { view: state.view, 
                 kvs: state.kvs, 
                 total_vc: state.total_vc, 
-                view_num: state.view_num },
+                view_timestamp: state.view_timestamp },
       }).catch((err) => {});
     }
   });

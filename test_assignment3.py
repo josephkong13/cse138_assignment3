@@ -124,7 +124,7 @@ def put_val_body(val, cm=None):
 class TestAssignment1(unittest.TestCase):
     def setUp(self):
         remove_partition()
-        # with view_num below line should be unnecessary
+        # with view_timestamp below line should be unnecessary
         # time.sleep(10) # this is necessary... with partitioning i think some messages get stuck in transit, and the messages from one test get sent during the next test. lmao.
         # Uninitialize all nodes:
         for h, p in zip(hosts, ports):
