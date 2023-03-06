@@ -12,7 +12,9 @@ const broadcast_kvs = function () {
       axios({
         url: `http://${address}/kvs/gossip`,
         method: "put",
-        data: { kvs: state.kvs, total_vc: state.total_vc },
+        data: { kvs: state.kvs, 
+                total_vc: state.total_vc, 
+                view_num: state.view_num },
       }).catch(err => {});
     }
   });
@@ -34,10 +36,13 @@ gossip.put("/", (req, res) => {
     return;
   }
 
+  // if bad body, or sender and receiver have different views, don't merge kvs's
   if (
     !req.body ||
     !req.body.hasOwnProperty("kvs") ||
-    !req.body.hasOwnProperty("total_vc")
+    !req.body.hasOwnProperty("total_vc") ||
+    !req.body.hasOwnProperty("view_num") ||
+    req.body.view_num != state.view_num
   ) {
     res.status(400).json({ error: "bad request" });
     return;

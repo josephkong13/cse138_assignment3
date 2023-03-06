@@ -91,9 +91,6 @@ def kvs_data_key_url(key, port, host='localhost'):
 def kvs_data_url(port, host='localhost'):
     return f'{make_base_url(port, host)}/kvs/data'
 
-# def partition_url(port, host='localhost', protocal='http'):
-#     return f'{make_base_url(port, host)}/kvs/admin/partition'
-
 
 # Bodies:
 
@@ -127,7 +124,8 @@ def put_val_body(val, cm=None):
 class TestAssignment1(unittest.TestCase):
     def setUp(self):
         remove_partition()
-        time.sleep(10) # this is necessary... with partitioning i think some messages get stuck in transit, and the messages from one test get sent during the next test. lmao.
+        # with view_num below line should be unnecessary
+        # time.sleep(10) # this is necessary... with partitioning i think some messages get stuck in transit, and the messages from one test get sent during the next test. lmao.
         # Uninitialize all nodes:
         for h, p in zip(hosts, ports):
             # delete(partition_url(p, h))
@@ -670,11 +668,6 @@ class TestAssignment1(unittest.TestCase):
         # ----------------- Start Delete Partition --------------------
 
         remove_partition()
-        
-        # delete(partition_url(ports[0], hosts[0]));
-        # delete(partition_url(ports[1], hosts[1]));
-        # delete(partition_url(ports[2], hosts[2]));
-        # delete(partition_url(ports[3], hosts[3]));
 
         # ----------------- End Delete Partition --------------------
 

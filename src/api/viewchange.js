@@ -20,11 +20,28 @@ router.put("/", (req, res) => {
     res.status(400).json({ error: "bad request" });
     return;
   }
-  
+
+  // If we're the replica getting the initial view change request, increment our view_num
+  // the view that the admin requested is now associated with this number.
+  if (!req.body.hasOwnProperty("view_num")) {
+    state.view_num = state.view_num + 1;
+  } 
+
+  if (req.body.hasOwnProperty("view_num")) {
+    // If we've already updated our view to this, our views are the same. return early.
+    if (state.view_num >= req.body.view_num) {
+      // console.log("SAME VIEW");
+      res.status(200).send();
+      return;
+    } 
+    // Otherwise, our view_num becomes the view_num we received
+    else {
+      state.view_num = req.body.view_num;
+    }
+  }
+
   let old_view = state.view;
   state.view = req.body.view;
-
-  let reset = false;
 
   // If we got some kvs and vc info from the node that is initializing us, update our state.
   if (req.body.hasOwnProperty("kvs") && req.body.hasOwnProperty("total_vc")) {
@@ -45,26 +62,10 @@ router.put("/", (req, res) => {
     if (!state.view.includes(address)) {
       axios({
         url: `http://${address}/kvs/admin/view`,
-        method: "put",
-        headers: { "X-HTTP-Method-Override": "DELETE" },
-      }).catch((err) => {
-        // if server responded with an error, forward it to requester
-        if (err.response) {
-          res.status(err.response.status).json(err.response.data);
-        }
-      });
-      reset = true;
+        method: "delete"
+      }).catch((err) => {});
     }
   });
-  
-  // If we didn't reset anything and old_view has the same length as the new view
-  // then the views are the same
-  // if views are the same, just return
-  if (reset == false && old_view.length == state.view.length) {
-    // console.log("SAME VIEW");
-    res.status(200).send();
-    return;
-  }
 
   // Broadcast endpoint to all replica in the cluster except us
   state.view.forEach((address) => {
@@ -72,20 +73,15 @@ router.put("/", (req, res) => {
       axios({
         url: `http://${address}/kvs/admin/view`,
         method: "put",
-        data: { view: state.view, kvs: state.kvs, total_vc: state.total_vc },
-      }).catch((err) => {
-        // if server responded with an error, forward it to requester
-        if (err.response) {
-          res.status(err.response.status).json(err.response.data);
-        }
-      });
+        data: { view: state.view, 
+                kvs: state.kvs, 
+                total_vc: state.total_vc, 
+                view_num: state.view_num },
+      }).catch((err) => {});
     }
   });
 
   state.initialized = true;
-
-  // console.log('view', state.view);
-  // console.log('total_vc', state.total_vc);
 
   res.status(200).send();
 });
