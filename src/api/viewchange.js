@@ -3,9 +3,13 @@ const router = express.Router();
 const state = require("../state");
 const axios = require("axios");
 const { full_address } = require("../address");
+const XXHash = require("xxhash");
+
+// This just an example
+console.log("HASH: ", XXHash.hash(Buffer.from("balsack"), 0xcafebabe));
 
 // https://www.scaler.com/topics/check-if-object-is-empty-javascript/
-function isObjEmpty (obj) {
+function isObjEmpty(obj) {
   return Object.getOwnPropertyNames(obj).length === 0;
 }
 
@@ -14,7 +18,7 @@ function isObjEmpty (obj) {
 */
 
 // View change endpoints
-router.put("/", (req, res) => { 
+router.put("/", (req, res) => {
   // if view wasn't included in the body, send error
   if (!req.body.hasOwnProperty("view")) {
     res.status(400).json({ error: "bad request" });
@@ -26,7 +30,7 @@ router.put("/", (req, res) => {
   // the view that the admin requested is now associated with this number.
   if (!req.body.hasOwnProperty("view_timestamp")) {
     state.view_timestamp = Date.now();
-  } 
+  }
 
   if (req.body.hasOwnProperty("view_timestamp")) {
     // If we've already updated our view to this, our views are the same (or we received an older, stale view). return early.
@@ -34,7 +38,7 @@ router.put("/", (req, res) => {
       // console.log("SAME VIEW");
       res.status(200).send();
       return;
-    } 
+    }
     // Otherwise, our view_timestamp becomes the view_timestamp we received
     else {
       state.view_timestamp = req.body.view_timestamp;
@@ -55,15 +59,15 @@ router.put("/", (req, res) => {
   if (isObjEmpty(state.total_vc)) {
     state.view.forEach((address) => {
       state.total_vc[address] = 0;
-    })
+    });
   }
-  
+
   old_view.forEach((address) => {
     // Reset any node in the old view that isn't in the new view
     if (!state.view.includes(address)) {
       axios({
         url: `http://${address}/kvs/admin/view`,
-        method: "delete"
+        method: "delete",
       }).catch((err) => {});
     }
   });
@@ -74,10 +78,12 @@ router.put("/", (req, res) => {
       axios({
         url: `http://${address}/kvs/admin/view`,
         method: "put",
-        data: { view: state.view, 
-                kvs: state.kvs, 
-                total_vc: state.total_vc, 
-                view_timestamp: state.view_timestamp },
+        data: {
+          view: state.view,
+          kvs: state.kvs,
+          total_vc: state.total_vc,
+          view_timestamp: state.view_timestamp,
+        },
       }).catch((err) => {});
     }
   });
