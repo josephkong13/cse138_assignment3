@@ -4,36 +4,38 @@
 // given_hash is the one we're tryna search
 // aka we're trying to find the hash directly after given_hash
 //
-// search_window is the size of the jump we're going to make
-//
-// index is the current index we're searching
+// uses a binary-search algorithm to get there
 //
 // returns the tuple of next clockwise hash and its shard
-const hash_search = (L, given_hash, search_window = L.length / 2, index = search_window) => {
+const hash_search = (L, given_hash) => {
 
-  // if our index is bigger than the array this means we need to wrap around to the first node
-  // since we're on a ring
-  if(index >= L.length)
+  let lower_bound = 0;
+  let upper_bound = L.length - 1;
+
+  // either the hash is bigger than the biggest hash we have or smaller than the smallest
+  // so we return the first element to wrap around since we're on a ring
+  // after, we know the key is inbetween the largest and smallest hash
+  if(L[upper_bound][0] < given_hash || L[lower_bound][0] > given_hash)
     return L[0];
+  
 
-  // destructure for hashes
-  const [before_hash, shard1] = L[index];
-  const [after_hash,  shard2] = L[index + 1];
+  while(lower_bound < upper_bound) {    
 
-  // this is the one we want
-  // return the after/clockwise
-  if(before_hash < given_hash && after_hash >= given_hash)
-    return L[index + 1];
+    let mid_point = Math.floor((upper_bound + lower_bound) / 2);
 
-  const new_search_window = search_window > 2 ? search_window / 2 : 1;
+    let lower_hash = L[mid_point][0];
+    let upper_hash = L[mid_point + 1][0];
 
-  // we need to look further down in the array
-  if(before_hash < given_hash && after_hash < given_hash)
-    return hash_search(L, given_hash, new_search_window, index + search_window);
+    if(lower_hash < given_hash && upper_hash >= given_hash)
+      return L[mid_point + 1];
 
-  // we're too far in the array
-  if(before_hash > given_hash)
-    return hash_search(L, given_hash, new_search_window, index - search_window);
+    if(upper_hash < given_hash)
+      lower_bound = mid_point;
+    if(lower_hash > given_hash)
+      upper_bound = mid_point;
+  }
+
+  throw Error("Bounds error");
 }
 
 // function to destructure and sort hashes
@@ -41,9 +43,9 @@ const hash_search = (L, given_hash, search_window = L.length / 2, index = search
 const hash_sort = ([hash1, shard1], [hash2, shard2]) => {
 
   if(hash1 < hash2)
-    return 1;
-  if(hash1 > hash2)
     return -1;
+  if(hash1 > hash2)
+    return 1;
 
   return 0;
 }

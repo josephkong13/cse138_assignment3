@@ -1,6 +1,7 @@
 
 const { hash_search, hash_sort, random_hash } = require("./shard_functions");
 
+// non-deterministic testing, we randomly generate the hashes and test on that
 describe("Hashing functions test", () => {
 
   let test_hashes = [];
@@ -22,6 +23,8 @@ describe("Hashing functions test", () => {
     
     test_hashes.sort(hash_sort);
 
+    // every hash should be less than the one following it
+    // not sure the expect works in sequence, TODO: check if it does
     for(let i = 0; i < num_hashes - 1; i++)
       expect(test_hashes[i][0] < test_hashes[i + 1][0]);
 
@@ -33,26 +36,44 @@ describe("Hashing functions test", () => {
 
     const test_key = random_hash(7);
     const [ hash_result, hash_shard ] = hash_search(test_hashes, test_key);
-    
+
     let j = 0;
     for(let i = 0; i < num_hashes; i++) {
-      if(test_hashes[i][0] == hash_result) {
+      if(test_hashes[i] == hash_result)
         j = i - 1;
-        break;
-      }
     }
 
-    console.log(j);
-
-    if(j < 0)
-      expect(test_key < hash_result)
-
-    console.log(test_hashes[j][0]);
-    console.log(test_key);
-    console.log(hash_result);
-
-    expect(test_key < hash_result && test_hashes[j][0] < test_key);
+    if(j >= 0) {
+      const [ before_hash, before_shard ] = test_hashes[j];
+      expect(test_key < hash_result && before_hash < test_key); 
+    } else
+      expect(test_key < hash_result).toBe(true); 
 
   });
 
+  test("Binary search hashes (Small number of hashes in our array)", () => {
+    
+    test_hashes.sort(hash_sort);
+    const reduced_size_test_hashes = test_hashes.slice(0,1);
+    console.log(reduced_size_test_hashes)
+
+    const test_key = random_hash(7);
+    const [ hash_result, hash_shard ] = hash_search(reduced_size_test_hashes, test_key);
+
+    let j = 0;
+    for(let i = 0; i < reduced_size_test_hashes.length; i++) {
+      if(reduced_size_test_hashes[i] == hash_result)
+        j = i - 1;
+    }
+
+    let before_hash = "";
+
+    if(j >= 0) {
+      const [ before_hash1, before_shard ] = reduced_size_test_hashes[j];
+      before_hash = before_hash1;
+    }
+
+    expect(false).toBe(true);
+
+  });
 });
