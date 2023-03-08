@@ -1,6 +1,4 @@
 
-
-
 // L is the list of tuples [ hash, shard ]
 //
 // given_hash is the one we're tryna search
@@ -38,3 +36,21 @@ const hash_search = (L, given_hash, search_window = L.length / 2, index = search
     return hash_search(L, given_hash, new_search_window, index - search_window);
 }
 
+// function to destructure and sort hashes
+// ie. [].sort(hash_sort);
+const hash_sort = ([hash1, shard1], [hash2, shard2]) => {
+
+  if(hash1 < hash2)
+    return 1;
+  if(hash1 > hash2)
+    return -1;
+
+  return 0;
+}
+
+// helper function for testing
+const random_hash = (length) => {
+  return (Math.random() + 1).toString(36).substring(length);
+}
+
+module.exports = { hash_search, hash_sort, random_hash };
