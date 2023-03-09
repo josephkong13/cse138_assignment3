@@ -43,11 +43,14 @@ describe("Hashing functions test", () => {
         j = i - 1;
     }
 
+    let before_hash = "";
+
     if(j >= 0) {
-      const [ before_hash, before_shard ] = test_hashes[j];
-      expect(test_key < hash_result && before_hash < test_key); 
-    } else
-      expect(test_key < hash_result).toBe(true); 
+      const [ before_hash_1, before_shard ] = test_hashes[j];
+      before_hash = before_hash_1;
+    } 
+    
+    expect(before_hash < test_key && test_key < hash_result).toBe(true); 
 
   });
 
@@ -73,7 +76,7 @@ describe("Hashing functions test", () => {
       before_hash = before_hash1;
     }
 
-    expect(false).toBe(true);
+    expect(before_hash < test_key && test_key < hash_result).toBe(true); 
 
   });
 });
