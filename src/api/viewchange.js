@@ -3,16 +3,8 @@ const router = express.Router();
 const state = require("../state");
 const axios = require("axios");
 const { full_address } = require("../address");
-const XXHash = require("xxhash");
 const { shard_number } = require("../state");
-
-// This just an example
-console.log("HASH: ", XXHash.hash(Buffer.from("balsack"), 0xcafebabe));
-
-// https://www.scaler.com/topics/check-if-object-is-empty-javascript/
-function isObjEmpty(obj) {
-  return Object.getOwnPropertyNames(obj).length === 0;
-}
+const { generate_hashed_vshards_ordered } = require("../utils/shard_functions");
 
 /* TODO: 
 - TODOs are in the routes below
@@ -126,7 +118,10 @@ router.put("/", (req, res) => {
     }
   });
 
-  // TODO: generate hashed_vshards_ordered
+  // generate hashed_vshards_ordered
+  state.hashed_vshards_ordered = generate_hashed_vshards_ordered(
+    req.body.num_shards
+  );
 
   state.initialized = true;
 
