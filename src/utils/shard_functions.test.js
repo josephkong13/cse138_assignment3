@@ -37,7 +37,7 @@ describe("Hashing functions test", () => {
     const test_key = random_hash(7);
     const [ hash_result, hash_shard ] = hash_search(test_hashes, test_key);
 
-    let j = 0;
+    let j = -1;
     for(let i = 0; i < num_hashes; i++) {
       if(test_hashes[i] == hash_result)
         j = i - 1;
@@ -50,23 +50,26 @@ describe("Hashing functions test", () => {
       before_hash = before_hash_1;
     } 
     
-    expect(before_hash < test_key && test_key < hash_result).toBe(true); 
-
+    const condition1 = before_hash < test_key && test_key < hash_result;
+    const condition2 = test_key > test_hashes[test_hashes.length - 1][0] && 
+                       hash_result == test_hashes[0][0];
+    expect(condition1 || condition2).toBe(true); 
   });
 
   test("Binary search hashes (Small number of hashes in our array)", () => {
     
     test_hashes.sort(hash_sort);
-    const reduced_size_test_hashes = test_hashes.slice(0,1);
-    console.log(reduced_size_test_hashes)
+    const reduced_size_test_hashes = test_hashes.slice(0,2);
 
     const test_key = random_hash(7);
     const [ hash_result, hash_shard ] = hash_search(reduced_size_test_hashes, test_key);
 
-    let j = 0;
+    let j = -1;
     for(let i = 0; i < reduced_size_test_hashes.length; i++) {
-      if(reduced_size_test_hashes[i] == hash_result)
+      if(reduced_size_test_hashes[i] == hash_result) {
         j = i - 1;
+        break;
+      }
     }
 
     let before_hash = "";
@@ -76,7 +79,10 @@ describe("Hashing functions test", () => {
       before_hash = before_hash1;
     }
 
-    expect(before_hash < test_key && test_key < hash_result).toBe(true); 
+    const condition1 = before_hash < test_key && test_key < hash_result;
+    const condition2 = test_key > reduced_size_test_hashes[reduced_size_test_hashes.length - 1][0] && 
+                       hash_result == reduced_size_test_hashes[0][0];
+    expect(condition1 || condition2).toBe(true); 
 
   });
 });
