@@ -1,12 +1,12 @@
 const state = {
   // initialized state
   initialized: false,
-  view: [],
-  // shard_numbers will be stricly positive, 0 is default
-  shard_number: 0,
+  nodes: [],
   // maps shard # to list of ip for that shard
   // example: {shard_number: [ip1, ip2] }
-  shards: {},
+  view: [],
+  // shard_numbers will be stricly positive, 0 is default (for uninitialized)
+  shard_number: 0,
   view_timestamp: 0,
   // example of key value pair
   // key: { last_written_vc: vector_clock, value: value, timestamp: datetime }
