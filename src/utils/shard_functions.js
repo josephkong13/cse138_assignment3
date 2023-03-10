@@ -40,6 +40,9 @@ const hash_sort = ([hash1, shard1], [hash2, shard2]) => {
   if (hash1 < hash2) return -1;
   if (hash1 > hash2) return 1;
 
+  if (shard1 < shard2) return -1;
+  if (shard2 > shard1) return 1;
+
   return 0;
 };
 
@@ -65,15 +68,9 @@ const generate_hashed_vshards_ordered = (num_shards) => {
 
   // sort the list of (hash, shard_num) pairs by ascending hash
   // tiebreak with ascending shard_num
-  hashed_vshards_ordered.sort((a, b) => {
-    if (b[0] !== a[0]) {
-      return a[0] - b[0];
-    } else {
-      return a[1] - b[1];
-    }
-  });
+  hashed_vshards_ordered.sort(hash_sort);
 
   return hashed_vshards_ordered;
 };
 
-module.exports = { hash_search, hash_sort, random_hash };
+module.exports = { generate_hashed_vshards_ordered, hash_search, hash_sort, random_hash };

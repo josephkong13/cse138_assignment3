@@ -1,4 +1,4 @@
-const full_address = process.env.ADDRESS || "0.0.0.0:8080"; // set to localhost for testing, change back to 0.0.0.0 later
+const full_address = process.env.ADDRESS || "localhost:8080" || "0.0.0.0:8080"; // set to localhost for testing, change back to 0.0.0.0 later
 
 const address_split = full_address.split(":");
 

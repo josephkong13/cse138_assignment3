@@ -3,7 +3,6 @@ const router = express.Router();
 const state = require("../state");
 const axios = require("axios");
 const { full_address } = require("../address");
-const { shard_number } = require("../state");
 const { generate_hashed_vshards_ordered } = require("../utils/shard_functions");
 
 /* TODO: 
@@ -75,14 +74,15 @@ router.put("/", (req, res) => {
   // figure out our shard number
 
   state.view.forEach((shard) => {
-    if (shard.nodes.contains(full_address)) {
+    if (shard.nodes.includes(full_address)) {
       state.shard_number = parseInt(shard.shard_id);
     }
   });
 
   // reset our total_vc to everyone in our shard, starting at 0 again
   // since state.view is 0-indexed, subtract 1.
-  state.view[shard_number - 1].forEach((address) => {
+  
+  state.view[state.shard_number - 1].nodes.forEach((address) => {
     state.total_vc[address] = 0;
   });
 
