@@ -10,7 +10,7 @@ const kvs_entry = function (kvs, key) {
 
 const max_vc = function (vc1, vc2) {
   const max_vc = {};
-  state.view.forEach((ip_address) => {
+  state.nodes.forEach((ip_address) => {
     max_vc[ip_address] = Math.max(
       vc_value(vc1, ip_address),
       vc_value(vc2, ip_address)
@@ -127,7 +127,7 @@ const merge_kvs = function (total_vc2, kvs2) {
     const combined_vc = max_vc(vc1, vc2);
 
     /*TODO: go over if both are concurrent, should we really not combine vector clocks?*/
-    if (compare_vc(vc1, vc2) == "CONCURRENT") {
+    if (compare_vc_all_nodes(vc1, vc2) == "CONCURRENT") {
       if (t1 < t2) {
         /* vc2 is newer */
         new_kvs[key] = {
@@ -143,21 +143,21 @@ const merge_kvs = function (total_vc2, kvs2) {
           timestamp: t1,
         };
       }
-    } else if (compare_vc(vc1, vc2) == "OLDER") {
+    } else if (compare_vc_all_nodes(vc1, vc2) == "OLDER") {
       /* vc2 is newer*/
       new_kvs[key] = {
         last_written_vc: vc2,
         value: v2.value,
         timestamp: t2,
       };
-    } else if (compare_vc(vc1, vc2) == "NEWER") {
+    } else if (compare_vc_all_nodes(vc1, vc2) == "NEWER") {
       /* vc1 is newer*/
       new_kvs[key] = {
         last_written_vc: vc1,
         value: v1.value,
         timestamp: t1,
       };
-    } else if (compare_vc(vc1, vc2) == "EQUAL") {
+    } else if (compare_vc_all_nodes(vc1, vc2) == "EQUAL") {
       /* vc1 == vc2 */
       new_kvs[key] = {
         last_written_vc: combined_vc,
@@ -171,4 +171,4 @@ const merge_kvs = function (total_vc2, kvs2) {
   state.total_vc = max_vc(state.total_vc, total_vc2);
 };
 
-module.exports = { max_vc, merge_kvs, compare_vc };
+module.exports = { max_vc, merge_kvs, compare_vc_all_nodes, compare_vc_shard };
