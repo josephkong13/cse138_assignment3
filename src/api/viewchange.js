@@ -115,6 +115,7 @@ router.put("/", (req, res) => {
         data: {
           nodes: state.nodes,
           view: state.view,
+          num_shards: req.body.num_shards,
           // kvs: state.kvs, // dont send kvs bc we want to send only the keys
           view_timestamp: state.view_timestamp,
         },

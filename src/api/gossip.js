@@ -7,7 +7,13 @@ const { full_address } = require("../address");
 
 // add a function for other_stuff too
 const broadcast_kvs = function () {
-  state.view[state.shard_number - 1].forEach((address) => {
+  console.log(state.shard_number)
+  console.log(state.view)
+
+  if(state.shard_number < 1)
+    return;
+
+  state.view[state.shard_number - 1].nodes.forEach((address) => {
     if (address != full_address && (!state.partition_testing || state.partition.includes(address))) {
       axios({
         url: `http://${address}/kvs/gossip`,
