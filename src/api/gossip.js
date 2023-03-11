@@ -12,10 +12,12 @@ const broadcast_kvs = function () {
       axios({
         url: `http://${address}/kvs/gossip`,
         method: "put",
-        data: { kvs: state.kvs, 
-                total_vc: state.total_vc, 
-                view_timestamp: state.view_timestamp },
-      }).catch(err => {});
+        data: {
+          kvs: state.kvs,
+          total_vc: state.total_vc,
+          view_timestamp: state.view_timestamp,
+        },
+      }).catch((err) => {});
     }
   });
 };

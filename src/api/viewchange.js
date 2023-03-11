@@ -3,7 +3,12 @@ const router = express.Router();
 const state = require("../state");
 const axios = require("axios");
 const { full_address } = require("../address");
-const { generate_hashed_vshards_ordered } = require("../utils/shard_functions");
+const {
+  generate_hashed_vshards_ordered,
+  hash_search,
+} = require("../utils/shard_functions");
+const XXHash = require("xxhash");
+const { merge_kvs } = require("../utils/vc_functions");
 
 /* TODO: 
 - TODOs are in the routes below
@@ -61,8 +66,9 @@ router.put("/", (req, res) => {
   state.nodes = req.body.nodes;
 
   // If we got some kvs and vc info from the node that is initializing us, update our state.
-  if (req.body.hasOwnProperty("kvs") && req.body.hasOwnProperty("view")) {
-    state.kvs = req.body.kvs;
+  if (req.body.hasOwnProperty("view")) {
+    // && req.body.hasOwnProperty("kvs")) {
+    //state.kvs = req.body.kvs;
     state.view = req.body.view;
   }
 
@@ -72,7 +78,6 @@ router.put("/", (req, res) => {
   }
 
   // figure out our shard number
-
   state.view.forEach((shard) => {
     if (shard.nodes.includes(full_address)) {
       state.shard_number = parseInt(shard.shard_id);
@@ -81,7 +86,6 @@ router.put("/", (req, res) => {
 
   // reset our total_vc to everyone in our shard, starting at 0 again
   // since state.view is 0-indexed, subtract 1.
-  
   state.view[state.shard_number - 1].nodes.forEach((address) => {
     state.total_vc[address] = 0;
   });
@@ -111,7 +115,7 @@ router.put("/", (req, res) => {
         data: {
           nodes: state.nodes,
           view: state.view,
-          kvs: state.kvs,
+          // kvs: state.kvs, // dont send kvs bc we want to send only the keys
           view_timestamp: state.view_timestamp,
         },
       }).catch((err) => {});
@@ -122,6 +126,36 @@ router.put("/", (req, res) => {
   state.hashed_vshards_ordered = generate_hashed_vshards_ordered(
     req.body.num_shards
   );
+
+  const shart = new Array(req.body.num_shards).fill({});
+
+  for (let i in state.kvs) {
+    const [hash, shard] = hash_search(
+      state.hashed_vshards_ordered,
+      XXHash.hash(i, 0xcafebabe)
+    );
+    shart[shard - 1][i] = state.kvs[i];
+  }
+
+  for (let i = 0; i < req.body.num_shards; i++) {
+    // send to respective
+    const ips = state.view[i].nodes;
+    ips.forEach((address) => {
+      if (address == state.address) return;
+
+      axios({
+        url: `http://${address}/kvs/gossip`,
+        method: "put",
+        data: {
+          kvs: shart[i],
+          total_vc: state.total_vc,
+          view_timestamp: state.view_timestamp,
+        },
+      }).catch((err) => {});
+    });
+  }
+
+  state.kvs = shart[state.shard_number - 1];
 
   state.initialized = true;
 
