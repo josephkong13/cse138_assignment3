@@ -8,14 +8,19 @@ const { full_address } = require("../address");
 // add a function for other_stuff too
 const broadcast_kvs = function () {
   state.view.forEach((address) => {
-    if (address != full_address && (!state.partition_testing || state.partition.includes(address))) {
+    if (
+      address != full_address &&
+      (!state.partition_testing || state.partition.includes(address))
+    ) {
       axios({
         url: `http://${address}/kvs/gossip`,
         method: "put",
-        data: { kvs: state.kvs, 
-                total_vc: state.total_vc, 
-                view_timestamp: state.view_timestamp },
-      }).catch(err => {});
+        data: {
+          kvs: state.kvs,
+          total_vc: state.total_vc,
+          view_timestamp: state.view_timestamp,
+        },
+      }).catch((err) => {});
     }
   });
 };
