@@ -7,11 +7,8 @@ const { full_address } = require("../address");
 
 // add a function for other_stuff too
 const broadcast_kvs = function () {
-  state.view.forEach((address) => {
-    if (
-      address != full_address &&
-      (!state.partition_testing || state.partition.includes(address))
-    ) {
+  state.view[state.shard_number - 1].forEach((address) => {
+    if (address != full_address && (!state.partition_testing || state.partition.includes(address))) {
       axios({
         url: `http://${address}/kvs/gossip`,
         method: "put",
@@ -25,13 +22,13 @@ const broadcast_kvs = function () {
   });
 };
 
-// Every 5 seconds, broadcast our kvs
+// Every 500 ms, broadcast our kvs
 function continuous_broadcast() {
   if (state.initialized) {
     broadcast_kvs();
   }
 
-  setTimeout(continuous_broadcast, 5000);
+  setTimeout(continuous_broadcast, 500);
 }
 
 // PUT endpoint
