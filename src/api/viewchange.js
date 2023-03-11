@@ -3,7 +3,9 @@ const router = express.Router();
 const state = require("../state");
 const axios = require("axios");
 const { full_address } = require("../address");
-const { generate_hashed_vshards_ordered } = require("../utils/shard_functions");
+const { generate_hashed_vshards_ordered, hash_search } = require("../utils/shard_functions");
+const XXHash = require("xxhash");
+const {merge_kvs} = require("../utils/vc_functions");
 
 /* TODO: 
 - TODOs are in the routes below
@@ -111,7 +113,7 @@ router.put("/", (req, res) => {
         data: {
           nodes: state.nodes,
           view: state.view,
-          kvs: state.kvs,
+          kvs: state.kvs, // dont send kvs bc we want to send only the keys 
           view_timestamp: state.view_timestamp,
         },
       }).catch((err) => {});
@@ -122,6 +124,35 @@ router.put("/", (req, res) => {
   state.hashed_vshards_ordered = generate_hashed_vshards_ordered(
     req.body.num_shards
   );
+
+  const shart = new Array(req.body.num_shards).fill({});
+
+  for(let i in kvs) {
+    const [ hash, shard ] = hash_search(state.hashed_vshards_ordered, XXHash.hash(i, 0xcafebabe));
+    shart[shard - 1][i] = state.kvs[i];
+  }
+
+  for(let i = 0; i < req.body.num_shards; i++) {
+    // send to respective
+    const ips = state.view[i].nodes;
+    ips.forEach((address) => {
+      
+      if(address == state.address)
+        return;
+
+      axios({
+        url: `http://${address}/kvs/gossip`,
+        method: "put",
+        data: { 
+          kvs: shart[i], 
+          total_vc: state.total_vc, 
+          view_timestamp: state.view_timestamp
+        },
+      }).catch((err) => {})
+    })
+  }
+
+  state.kvs = shart[state.shard - 1];
 
   state.initialized = true;
 
