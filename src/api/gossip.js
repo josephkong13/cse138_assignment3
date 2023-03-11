@@ -20,13 +20,13 @@ const broadcast_kvs = function () {
   });
 };
 
-// Every 5 seconds, broadcast our kvs
+// Every 500 ms, broadcast our kvs
 function continuous_broadcast() {
   if (state.initialized) {
     broadcast_kvs();
   }
 
-  setTimeout(continuous_broadcast, 5000);
+  setTimeout(continuous_broadcast, 500);
 }
 
 // PUT endpoint

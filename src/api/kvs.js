@@ -30,6 +30,11 @@ router.put("/:key", (req, res) => {
     ? req.body["causal-metadata"]
     : {};
 
+  let causal_metadata_view_timestamp = causal_metadata.hasOwnProperty("view_timestamp") ? causal_metadata.view_timestamp : 0;
+  let causal_metadata_vc = causal_metadata.hasOwnProperty("vc") ? causal_metadata.vc : {};
+
+  // reset client's causal_metadata_vc if 
+
   // if val size more than 8MB, send error. may have to consider js objects
   if (val.length > 8000000) {
     res.status(400).json({ error: "val too large" });

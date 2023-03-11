@@ -21,18 +21,56 @@ const max_vc = function (vc1, vc2) {
 };
 
 /*
-Compares two vector clocks
+Compares two vector clocks, considering clock value of ALL nodes
 // 'CONCURRENT' if vc1 || vc2
 // 'NEWER' if vc1 > vc2
 // 'OLDER' if vc1 < vc2
 // 'SAME' if vc1 = vc2
 */
-const compare_vc = function (vc1, vc2) {
+const compare_vc_all_nodes = function (vc1, vc2) {
   let equal = true;
   let greater = true;
   let less = true;
 
-  state.view.forEach((ip_address) => {
+  state.nodes.forEach((ip_address) => {
+    const v1 = vc_value(vc1, ip_address);
+    const v2 = vc_value(vc2, ip_address);
+
+    if (v1 !== v2) {
+      equal = false;
+    }
+    if (v1 < v2) {
+      greater = false;
+    }
+    if (v1 > v2) {
+      less = false;
+    }
+  });
+
+  if (equal) {
+    return "EQUAL";
+  } else if (greater) {
+    return "NEWER";
+  } else if (less) {
+    return "OLDER";
+  } else {
+    return "CONCURRENT";
+  }
+};
+
+/*
+Compares two vector clocks, just considering the clock values in our shard
+// 'CONCURRENT' if vc1 || vc2
+// 'NEWER' if vc1 > vc2
+// 'OLDER' if vc1 < vc2
+// 'SAME' if vc1 = vc2
+*/
+const compare_vc_shard = function (vc1, vc2) {
+  let equal = true;
+  let greater = true;
+  let less = true;
+
+  state.view[state.shard_number - 1].forEach((ip_address) => {
     const v1 = vc_value(vc1, ip_address);
     const v2 = vc_value(vc2, ip_address);
 
