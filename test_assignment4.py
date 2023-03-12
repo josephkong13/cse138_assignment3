@@ -776,7 +776,7 @@ class TestAssignment1(unittest.TestCase):
         # Wait for replicas to sync up before changing view
         time.sleep(5)
 
-        # Make sure new replicas in view are caught up
+        # Make sure new replicas in view are caught up <-- this evenetually shouldn't be 404 once we implement request forwarding.
         res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
         self.assertEqual(res0.status_code, 404);
 

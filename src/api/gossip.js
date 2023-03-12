@@ -7,8 +7,6 @@ const { full_address } = require("../address");
 
 // add a function for other_stuff too
 const broadcast_kvs = function () {
-  console.log(state.shard_number)
-  console.log(state.view)
 
   if(state.shard_number < 1)
     return;
@@ -57,8 +55,6 @@ gossip.put("/", (req, res) => {
   }
 
   merge_kvs(req.body.total_vc, req.body.kvs);
-
-  console.log("after merging", state);
 
   res.status(200).send();
 });

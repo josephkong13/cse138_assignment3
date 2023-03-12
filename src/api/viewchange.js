@@ -129,7 +129,11 @@ router.put("/", (req, res) => {
     req.body.num_shards
   );
 
-  const shart = new Array(req.body.num_shards).fill({});
+  const shart = [];
+
+  for (let i = 0; i < req.body.num_shards; i++) {
+    shart.push({});
+  }
 
   for (let i in state.kvs) {
     const [hash, shard] = hash_search(
@@ -159,11 +163,7 @@ router.put("/", (req, res) => {
 
   state.kvs = shart[state.shard_number - 1];
 
-  console.log("=======");
-  console.log("initializing!");
   state.initialized = true;
-  console.log(state);
-
   res.status(200).send();
 });
 
