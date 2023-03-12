@@ -70,7 +70,7 @@ const compare_vc_shard = function (vc1, vc2) {
   let greater = true;
   let less = true;
 
-  state.view[state.shard_number - 1].forEach((ip_address) => {
+  state.view[state.shard_number - 1].nodes.forEach((ip_address) => {
     const v1 = vc_value(vc1, ip_address);
     const v2 = vc_value(vc2, ip_address);
 

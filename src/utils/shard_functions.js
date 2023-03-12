@@ -1,4 +1,6 @@
 const XXHash = require("xxhash");
+const state = require("../state");
+const seed = 0xcafebabe;
 
 // L is the list of tuples [ hash, shard ]
 //
@@ -60,7 +62,7 @@ const generate_hashed_vshards_ordered = (num_shards) => {
     for (let vshard_num = 0; vshard_num < vshards_per_shard; vshard_num++) {
       const string_to_hash = `shard${shard_num}_vshard${vshard_num}`;
 
-      const hash = XXHash.hash(Buffer.from(string_to_hash), 0xcafebabe);
+      const hash = XXHash.hash(Buffer.from(string_to_hash), seed);
 
       hashed_vshards_ordered.push([hash, shard_num]);
     }
@@ -73,4 +75,47 @@ const generate_hashed_vshards_ordered = (num_shards) => {
   return hashed_vshards_ordered;
 };
 
-module.exports = { generate_hashed_vshards_ordered, hash_search, hash_sort, random_hash };
+// take a list of nodes and spread them evenly into the shards
+function nodes_to_shards(nodes, num_shards) {
+  let view = [];
+
+  for (let i = 0; i < num_shards; i++) {
+    view.push({ shard_id: `${i + 1}`, nodes: [] });
+  }
+
+  let curr_shard = 0;
+  nodes.forEach((address) => {
+    view[curr_shard].nodes.push(address);
+    curr_shard = (curr_shard + 1) % num_shards;
+  });
+
+  return view;
+}
+
+// take a new num_shards and breaks up the kvs into the proper shards
+const reshard_kvs = (num_shards) => {
+  const reshard = [];
+
+  for (let i = 0; i < num_shards; i++) {
+    reshard.push({});
+  }
+
+  for (let key in state.kvs) {
+    const [_, shard_num] = hash_search(
+      state.hashed_vshards_ordered,
+      XXHash.hash(Buffer.from(key), seed)
+    );
+    reshard[shard_num - 1][key] = state.kvs[key];
+  }
+  return reshard;
+};
+
+module.exports = {
+  generate_hashed_vshards_ordered,
+  hash_search,
+  hash_sort,
+  random_hash,
+  nodes_to_shards,
+  reshard_kvs,
+  seed,
+};

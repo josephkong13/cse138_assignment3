@@ -5,31 +5,9 @@ const axios = require("axios");
 const { full_address } = require("../address");
 const {
   generate_hashed_vshards_ordered,
-  hash_search,
+  nodes_to_shards,
+  reshard_kvs,
 } = require("../utils/shard_functions");
-const XXHash = require("xxhash");
-const { merge_kvs } = require("../utils/vc_functions");
-
-/* TODO: 
-- TODOs are in the routes below
-*/
-
-// take a list of nodes and spread them evenly into the shards
-function nodes_to_shards(nodes, num_shards) {
-  let view = [];
-
-  for (let i = 0; i < num_shards; i++) {
-    view.push({ shard_id: `${i + 1}`, nodes: [] });
-  }
-
-  let curr_shard = 0;
-  nodes.forEach((address) => {
-    view[curr_shard].nodes.push(address);
-    curr_shard = (curr_shard + 1) % num_shards;
-  });
-
-  return view;
-}
 
 // View change endpoints
 router.put("/", (req, res) => {
@@ -97,7 +75,7 @@ router.put("/", (req, res) => {
 
   old_nodes.forEach((address) => {
     // Reset any node in the old view that isn't in the new view
-    if (!state.view.includes(address)) {
+    if (!state.nodes.includes(address)) {
       axios({
         url: `http://${address}/kvs/admin/view`,
         method: "delete",
@@ -115,6 +93,7 @@ router.put("/", (req, res) => {
         data: {
           nodes: state.nodes,
           view: state.view,
+          num_shards: req.body.num_shards,
           // kvs: state.kvs, // dont send kvs bc we want to send only the keys
           view_timestamp: state.view_timestamp,
         },
@@ -127,15 +106,7 @@ router.put("/", (req, res) => {
     req.body.num_shards
   );
 
-  const shart = new Array(req.body.num_shards).fill({});
-
-  for (let i in state.kvs) {
-    const [hash, shard] = hash_search(
-      state.hashed_vshards_ordered,
-      XXHash.hash(i, 0xcafebabe)
-    );
-    shart[shard - 1][i] = state.kvs[i];
-  }
+  const shart = reshard_kvs(req.body.num_shards);
 
   for (let i = 0; i < req.body.num_shards; i++) {
     // send to respective
@@ -158,7 +129,6 @@ router.put("/", (req, res) => {
   state.kvs = shart[state.shard_number - 1];
 
   state.initialized = true;
-
   res.status(200).send();
 });
 
