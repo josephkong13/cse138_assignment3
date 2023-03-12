@@ -14,6 +14,7 @@ const { merge_kvs } = require("../utils/vc_functions");
 - TODOs are in the routes below
 */
 
+// TODO: put this in shard_functions
 // take a list of nodes and spread them evenly into the shards
 function nodes_to_shards(nodes, num_shards) {
   let view = [];
