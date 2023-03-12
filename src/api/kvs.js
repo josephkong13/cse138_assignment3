@@ -86,6 +86,7 @@ router.put("/:key", (req, res) => {
 router.get("/:key", (req, res) => {
   // if we're uninitialized, return 418
   if (!state.initialized) {
+    console.log("wtf, uninitialized", state);
     res.status(418).json({ error: "uninitialized" });
     return;
   }

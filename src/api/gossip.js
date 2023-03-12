@@ -58,6 +58,8 @@ gossip.put("/", (req, res) => {
 
   merge_kvs(req.body.total_vc, req.body.kvs);
 
+  console.log("after merging", state);
+
   res.status(200).send();
 });
 

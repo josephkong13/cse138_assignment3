@@ -97,7 +97,7 @@ router.put("/", (req, res) => {
 
   old_nodes.forEach((address) => {
     // Reset any node in the old view that isn't in the new view
-    if (!state.view.includes(address)) {
+    if (!state.nodes.includes(address)) {
       axios({
         url: `http://${address}/kvs/admin/view`,
         method: "delete",
@@ -133,7 +133,7 @@ router.put("/", (req, res) => {
   for (let i in state.kvs) {
     const [hash, shard] = hash_search(
       state.hashed_vshards_ordered,
-      XXHash.hash(i, 0xcafebabe)
+      XXHash.hash(Buffer.from(i), 0xcafebabe)
     );
     shart[shard - 1][i] = state.kvs[i];
   }
@@ -158,7 +158,10 @@ router.put("/", (req, res) => {
 
   state.kvs = shart[state.shard_number - 1];
 
+  console.log("=======");
+  console.log("initializing!");
   state.initialized = true;
+  console.log(state);
 
   res.status(200).send();
 });
