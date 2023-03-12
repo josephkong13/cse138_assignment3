@@ -1,35 +1,40 @@
-time="2023-03-10T10:28:29-08:00" level=info msg="Graded using github.com/AKarbas/cse138-kuber-grader" group=jkong13
-time="2023-03-10T10:28:29-08:00" level=info msg="Starting test 1" group=jkong13
-time="2023-03-10T10:28:29-08:00" level=info msg="this test runs on a healthy network and checks if simple view and data operations are successful. max score in test: 80" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
-time="2023-03-10T10:28:39-08:00" level=info msg="score +10 - put view successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
-time="2023-03-10T10:28:39-08:00" level=info msg="score +10 - view consistent" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
-time="2023-03-10T10:28:39-08:00" level=info msg="score +10 - first gets successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
-time="2023-03-10T10:28:39-08:00" level=info msg="score +10 - first puts successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
-time="2023-03-10T10:28:44-08:00" level=info msg="score +10 - second gets successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
-time="2023-03-10T10:28:44-08:00" level=info msg="score +10 - second puts successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
-time="2023-03-10T10:28:44-08:00" level=info msg="score +10 - third gets successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
-time="2023-03-10T10:28:44-08:00" level=info msg="score +10 - key list valid" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
-time="2023-03-10T10:28:46-08:00" level=info msg="final score: 80" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
-time="2023-03-10T10:28:46-08:00" level=info msg="Starting test 2" group=jkong13
-time="2023-03-10T10:28:46-08:00" level=info msg="this test starts a cluster and then partitions the nodes into two parts; inserts to both parts; heals the partition; and expects the results to be the same from all nodes, including causal ordering and tie breaking. max score in test: 50" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
-time="2023-03-10T10:28:56-08:00" level=info msg="score +10 - partitioned puts successful" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
-time="2023-03-10T10:29:16-08:00" level=info msg="score +10 - partitioned gets successful" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
-time="2023-03-10T10:29:27-08:00" level=info msg="score +10 - key count after network heal successful" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
-time="2023-03-10T10:29:28-08:00" level=info msg="score +10 - causal ordering after network heal successful" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
-time="2023-03-10T10:29:28-08:00" level=info msg="score +10 - tie-breaking after network heal successful" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
-time="2023-03-10T10:29:32-08:00" level=info msg="final score: 50" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
-time="2023-03-10T10:29:32-08:00" level=warning msg="test 2 did not finish with the full score." expected=50 got=0 group=jkong13
-time="2023-03-10T10:29:32-08:00" level=info msg="Starting test 3" group=jkong13
-time="2023-03-10T10:29:32-08:00" level=info msg="this test changes the view in a healthy network and checks that the data are readable in the new nodes after the view change. max score in test: 10" group=jkong13 numKeys=10 numNodes=4 test=BasicViewChange
-time="2023-03-10T10:30:02-08:00" level=error msg="invalid status code for get" expected=200 group=jkong13 numKeys=10 numNodes=4 received=500 test=BasicViewChange
-time="2023-03-10T10:30:05-08:00" level=info msg="final score: 0" group=jkong13 numKeys=10 numNodes=4 test=BasicViewChange
-time="2023-03-10T10:30:05-08:00" level=warning msg="test 3 did not finish with the full score." expected=10 got=0 group=jkong13
-time="2023-03-10T10:30:05-08:00" level=info msg="Starting test 4" group=jkong13
-time="2023-03-10T10:30:05-08:00" level=info msg="this test changes the view in a partitioned network; heals the network and waits; and checks that the data are readable in the new nodes after the view change. max score in test: 10" group=jkong13 numKeys=10 numNodes=6 test=PartitionedViewChange
-time="2023-03-10T10:30:26-08:00" level=info msg="score +10 - gets from new nodes after partition heal successful" group=jkong13 numKeys=10 numNodes=6 test=PartitionedViewChange
-time="2023-03-10T10:30:35-08:00" level=info msg="final score: 10" group=jkong13 numKeys=10 numNodes=6 test=PartitionedViewChange
-time="2023-03-10T10:30:35-08:00" level=info msg="Starting test 5" group=jkong13
-time="2023-03-10T10:30:35-08:00" level=info msg="this test isolates each node and ensures that it's writable; and that after partitions are healed, all nodes contain all of the data. max score in test: 10" group=jkong13 numKeys=10 numNodes=3 test=Availability
-time="2023-03-10T10:30:57-08:00" level=info msg="score +10 - gets from new nodes after partition heal successful" group=jkong13 numKeys=10 numNodes=3 test=Availability
-time="2023-03-10T10:31:03-08:00" level=info msg="final score: 10" group=jkong13 numKeys=10 numNodes=3 test=Availability
-time="2023-03-10T10:31:03-08:00" level=info msg="Final score overall: 0.58" group=jkong13
+time="2023-03-11T18:17:44-08:00" level=info msg="Graded using github.com/AKarbas/cse138-kuber-grader" group=jkong13
+time="2023-03-11T18:17:44-08:00" level=info msg="All tests that expect a non-500 status code were done after waiting for the eventual consistency period." group=jkong13
+time="2023-03-11T18:17:44-08:00" level=info msg="After each view change or network heal, your system had 11 seconds to ensure consistency." group=jkong13
+time="2023-03-11T18:17:44-08:00" level=info msg="All data operations were done with a time-out of 21 seconds, and \"context deadline exceeded\" means longer waits." group=jkong13
+time="2023-03-11T18:17:44-08:00" level=info msg="Starting test 1" group=jkong13
+time="2023-03-11T18:17:44-08:00" level=info msg="this test runs on a healthy network and checks if simple view and data operations are successful. max score in test: 80" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
+time="2023-03-11T18:17:54-08:00" level=info msg="score +10 - put view successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
+time="2023-03-11T18:18:04-08:00" level=info msg="score +10 - view consistent" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
+time="2023-03-11T18:18:04-08:00" level=info msg="score +10 - first gets successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
+time="2023-03-11T18:18:04-08:00" level=info msg="score +10 - first puts successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
+time="2023-03-11T18:18:04-08:00" level=info msg="score +10 - second gets successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
+time="2023-03-11T18:18:04-08:00" level=info msg="score +10 - second puts successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
+time="2023-03-11T18:18:09-08:00" level=info msg="score +10 - third gets successful" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
+time="2023-03-11T18:18:09-08:00" level=info msg="score +10 - key list valid" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
+time="2023-03-11T18:18:11-08:00" level=info msg="final score: 80" group=jkong13 numKeys=10 numNodes=3 test=BasicKeyVal
+time="2023-03-11T18:18:11-08:00" level=info msg="Starting test 2" group=jkong13
+time="2023-03-11T18:18:11-08:00" level=info msg="this test starts a cluster and then partitions the nodes into two parts; inserts to both parts; heals the partition; and expects the results to be the same from all nodes, including causal ordering and tie breaking. max score in test: 50" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
+time="2023-03-11T18:18:32-08:00" level=info msg="score +10 - partitioned puts successful" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
+time="2023-03-11T18:18:53-08:00" level=info msg="score +10 - partitioned gets successful" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
+time="2023-03-11T18:19:04-08:00" level=info msg="score +10 - key count after network heal successful" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
+time="2023-03-11T18:19:04-08:00" level=info msg="score +10 - causal ordering after network heal successful" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
+time="2023-03-11T18:19:04-08:00" level=info msg="score +10 - tie-breaking after network heal successful" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
+time="2023-03-11T18:19:06-08:00" level=info msg="final score: 50" group=jkong13 numKeys=10 numNodes=4 test=PartitionedTieBreak
+time="2023-03-11T18:19:06-08:00" level=info msg="Starting test 3" group=jkong13
+time="2023-03-11T18:19:06-08:00" level=info msg="this test changes the view in a healthy network and checks that the data are readable in the new nodes after the view change. max score in test: 10" group=jkong13 numKeys=10 numNodes=4 test=BasicViewChange
+time="2023-03-11T18:19:58-08:00" level=warning msg="invalid status code for get" expected=200 group=jkong13 numKeys=10 numNodes=4 received=500 test=BasicViewChange
+time="2023-03-11T18:19:58-08:00" level=warning msg="invalid value" expected=Val-0-0 group=jkong13 numKeys=10 numNodes=4 received= test=BasicViewChange
+time="2023-03-11T18:19:58-08:00" level=warning msg="invalid status code for get" expected=200 group=jkong13 numKeys=10 numNodes=4 received=404 test=BasicViewChange
+time="2023-03-11T18:19:58-08:00" level=warning msg="invalid value" expected=Val-9-0 group=jkong13 numKeys=10 numNodes=4 received= test=BasicViewChange
+time="2023-03-11T18:20:01-08:00" level=info msg="final score: 0" group=jkong13 numKeys=10 numNodes=4 test=BasicViewChange
+time="2023-03-11T18:20:01-08:00" level=warning msg="test 3 did not finish with the full score." expected=10 got=0 group=jkong13
+time="2023-03-11T18:20:01-08:00" level=info msg="Starting test 4" group=jkong13
+time="2023-03-11T18:20:01-08:00" level=info msg="this test changes the view in a partitioned network; heals the network and waits; and checks that the data are readable in the new nodes after the view change. max score in test: 10" group=jkong13 numKeys=10 numNodes=6 test=PartitionedViewChange
+time="2023-03-11T18:20:44-08:00" level=info msg="score +10 - gets from new nodes after partition heal successful" group=jkong13 numKeys=10 numNodes=6 test=PartitionedViewChange
+time="2023-03-11T18:20:48-08:00" level=info msg="final score: 10" group=jkong13 numKeys=10 numNodes=6 test=PartitionedViewChange
+time="2023-03-11T18:20:48-08:00" level=info msg="Starting test 5" group=jkong13
+time="2023-03-11T18:20:48-08:00" level=info msg="this test isolates each node and ensures that it's writable; and that after partitions are healed, all nodes contain all of the data. max score in test: 10" group=jkong13 numKeys=10 numNodes=3 test=Availability
+time="2023-03-11T18:21:20-08:00" level=info msg="score +10 - gets from new nodes after partition heal successful" group=jkong13 numKeys=10 numNodes=3 test=Availability
+time="2023-03-11T18:21:22-08:00" level=info msg="final score: 10" group=jkong13 numKeys=10 numNodes=3 test=Availability
+time="2023-03-11T18:21:22-08:00" level=info msg="Final score overall: 0.83" group=jkong13
