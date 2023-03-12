@@ -5,32 +5,9 @@ const axios = require("axios");
 const { full_address } = require("../address");
 const {
   generate_hashed_vshards_ordered,
-  hash_search,
+  nodes_to_shards,
+  reshard_kvs,
 } = require("../utils/shard_functions");
-const XXHash = require("xxhash");
-const { merge_kvs } = require("../utils/vc_functions");
-
-/* TODO: 
-- TODOs are in the routes below
-*/
-
-// TODO: put this in shard_functions
-// take a list of nodes and spread them evenly into the shards
-function nodes_to_shards(nodes, num_shards) {
-  let view = [];
-
-  for (let i = 0; i < num_shards; i++) {
-    view.push({ shard_id: `${i + 1}`, nodes: [] });
-  }
-
-  let curr_shard = 0;
-  nodes.forEach((address) => {
-    view[curr_shard].nodes.push(address);
-    curr_shard = (curr_shard + 1) % num_shards;
-  });
-
-  return view;
-}
 
 // View change endpoints
 router.put("/", (req, res) => {
@@ -129,19 +106,7 @@ router.put("/", (req, res) => {
     req.body.num_shards
   );
 
-  const shart = [];
-
-  for (let i = 0; i < req.body.num_shards; i++) {
-    shart.push({});
-  }
-
-  for (let i in state.kvs) {
-    const [hash, shard] = hash_search(
-      state.hashed_vshards_ordered,
-      XXHash.hash(Buffer.from(i), 0xcafebabe)
-    );
-    shart[shard - 1][i] = state.kvs[i];
-  }
+  const shart = reshard_kvs(req.body.num_shards);
 
   for (let i = 0; i < req.body.num_shards; i++) {
     // send to respective
