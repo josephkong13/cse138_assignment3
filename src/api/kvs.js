@@ -60,7 +60,6 @@ const shard_check = async (req, res, next) => {
         res.status(upstream_res.status).json(upstream_res.data);
       })
       .catch((err) => {
-        console.log("ERROR: ", err);
         // if server responded with an error, forward it to client
         if (err.response) {
           res.status(err.response.status).json(err.response.data);
@@ -69,6 +68,10 @@ const shard_check = async (req, res, next) => {
         else {
           res.status(503).json({
             error: "upstream down",
+            upstream: {
+              shard_id: `${shard_num}`,
+              nodes: state.view[shard_num - 1].nodes
+            }
           });
         }
       });
