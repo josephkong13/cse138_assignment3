@@ -62,9 +62,9 @@ const generate_hashed_vshards_ordered = (num_shards) => {
     for (let vshard_num = 0; vshard_num < vshards_per_shard; vshard_num++) {
       const string_to_hash = `shard${shard_num}_vshard${vshard_num}`;
 
-      const hash = XXHash.hash(Buffer.from(string_to_hash), seed);
+      const hashed_string = hash(string_to_hash);
 
-      hashed_vshards_ordered.push([hash, shard_num]);
+      hashed_vshards_ordered.push([hashed_string, shard_num]);
     }
   }
 
@@ -101,13 +101,14 @@ const reshard_kvs = (num_shards) => {
   }
 
   for (let key in state.kvs) {
-    const [_, shard_num] = hash_search(
-      state.hashed_vshards_ordered,
-      XXHash.hash(Buffer.from(key), seed)
-    );
+    const [_, shard_num] = hash_search(state.hashed_vshards_ordered, hash(key));
     reshard[shard_num - 1][key] = state.kvs[key];
   }
   return reshard;
+};
+
+const hash = (key) => {
+  return XXHash.hash(Buffer.from(key), seed);
 };
 
 module.exports = {
@@ -117,5 +118,6 @@ module.exports = {
   random_hash,
   nodes_to_shards,
   reshard_kvs,
+  hash,
   seed,
 };
