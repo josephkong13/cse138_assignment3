@@ -2,12 +2,22 @@ const express = require("express");
 const router = express.Router();
 const state = require("../state");
 const { full_address } = require("../address");
-const { max_vc, compare_vc_all_nodes, compare_vc_shard } = require("../utils/vc_functions");
+const {
+  max_vc,
+  compare_vc_all_nodes,
+  compare_vc_shard,
+} = require("../utils/vc_functions");
+const { hash, hash_search } = require("../utils/shard_functions");
 const { broadcast_kvs } = require("./gossip");
+const axios = require("axios");
 
 function causal_metadata_setup(causal_metadata) {
-  let client_view_timestamp = causal_metadata.hasOwnProperty("view_timestamp") ? causal_metadata.view_timestamp : 0;
-  let client_vc = causal_metadata.hasOwnProperty("vc") ? causal_metadata.vc : {};
+  let client_view_timestamp = causal_metadata.hasOwnProperty("view_timestamp")
+    ? causal_metadata.view_timestamp
+    : 0;
+  let client_vc = causal_metadata.hasOwnProperty("vc")
+    ? causal_metadata.vc
+    : {};
 
   // reset client's causal_metadata_vc if our replica has a newer view.
   if (state.view_timestamp > client_view_timestamp) {
@@ -17,14 +27,61 @@ function causal_metadata_setup(causal_metadata) {
   return client_vc;
 }
 
-// PUT endpoint
-router.put("/:key", (req, res) => {
+const uninitialized_check = (req, res, next) => {
   // if we're uninitialized, return 418
   if (!state.initialized) {
     res.status(418).json({ error: "uninitialized" });
     return;
   }
+  next();
+};
 
+const shard_check = async (req, res, next) => {
+  const key = req.params.key;
+  const hashed_key = hash(key);
+  const [_, shard_num] = hash_search(state.hashed_vshards_ordered, hashed_key);
+  if (shard_num != state.shard_number) {
+    // We must stall and forward the request to the IPs that have this shard_num
+    const shard_nodes = state.view[shard_num - 1].nodes;
+    // either, delete, put or get
+    const method = req.method;
+    const requests = shard_nodes.map((ip) =>
+      axios({
+        url: `http://${ip}/kvs/data/${key}`,
+        method: "put",
+        data: req.body,
+        timeout: 20000,
+        headers: { "X-HTTP-Method-Override": method },
+      })
+    );
+
+    await Promise.race(requests)
+      .then((upstream_res) => {
+        res.status(upstream_res.status).json(upstream_res.data);
+      })
+      .catch((err) => {
+        // if server responded with an error, forward it to client
+        if (err.response) {
+          res.status(err.response.status).json(err.response.data);
+        }
+        // if we didn't receive response from upstream (either couldn't connect or timed out)
+        else {
+          res.status(503).json({
+            error: "upstream down",
+            upstream: {
+              shard_id: `${shard_num}`,
+              nodes: state.view[shard_num - 1].nodes
+            }
+          });
+        }
+      });
+    return;
+  }
+  next();
+};
+
+// PUT endpoint
+router.put("/:key", uninitialized_check, shard_check, (req, res) => {
   const key = req.params.key;
 
   // if causal_metadata or val wasn't included in the body, send error
@@ -71,25 +128,21 @@ router.put("/:key", (req, res) => {
     last_written_vc,
     value: val,
     timestamp: Date.now(),
-  }
+  };
 
   // BROADCAST KVS + T_VC TO ALL OTHER REPLICAS IN VIEW
   broadcast_kvs();
 
-  res.status(response_code).json({ "causal-metadata": {
-    vc: last_written_vc,
-    view_timestamp: state.view_timestamp
-  } });
+  res.status(response_code).json({
+    "causal-metadata": {
+      vc: last_written_vc,
+      view_timestamp: state.view_timestamp,
+    },
+  });
 });
 
 // GET endpoint
-router.get("/:key", (req, res) => {
-  // if we're uninitialized, return 418
-  if (!state.initialized) {
-    res.status(418).json({ error: "uninitialized" });
-    return;
-  }
-
+router.get("/:key", uninitialized_check, shard_check, (req, res) => {
   const key = req.params.key;
 
   // if causal_metadata wasn't included in the body, send error
@@ -113,84 +166,95 @@ router.get("/:key", (req, res) => {
       // if key_last_written is newer/same/concurrent, return value
       // and causal metadata = max_vc(causal_metadata, key_last_written)
       if (compare_vc_all_nodes(key_last_written, client_vc) != "OLDER") {
-
         const new_client_vc = max_vc(client_vc, key_last_written);
 
         // If most recent write of key's value was deleting it
         if (state.kvs[key].value == null) {
-          res.status(404).json({ "causal-metadata": {
-            vc: new_client_vc,
-            view_timestamp: state.view_timestamp
-          } });
+          res.status(404).json({
+            "causal-metadata": {
+              vc: new_client_vc,
+              view_timestamp: state.view_timestamp,
+            },
+          });
           return true;
         }
-        
+
         res.status(200).json({
           val: state.kvs[key].value,
           "causal-metadata": {
             vc: new_client_vc,
-            view_timestamp: state.view_timestamp
-          }
+            view_timestamp: state.view_timestamp,
+          },
         });
         return true;
-        
       }
-
     }
 
     // if total_vc is newer or same
-    const total_vc_to_causal_metadata = compare_vc_shard(state.total_vc, client_vc);
-    if (total_vc_to_causal_metadata == "NEWER" || total_vc_to_causal_metadata == "EQUAL") {
+    const total_vc_to_causal_metadata = compare_vc_shard(
+      state.total_vc,
+      client_vc
+    );
+    if (
+      total_vc_to_causal_metadata == "NEWER" ||
+      total_vc_to_causal_metadata == "EQUAL"
+    ) {
       // If key was never written to, send 404 and client's VC back
       if (!state.kvs.hasOwnProperty(key)) {
-        res.status(404).json({ "causal-metadata": {
-          vc: client_vc,
-          view_timestamp: state.view_timestamp
-        } });
+        res.status(404).json({
+          "causal-metadata": {
+            vc: client_vc,
+            view_timestamp: state.view_timestamp,
+          },
+        });
         return true;
       }
-      
+
       // return value, causal_metadata = max_vc(causal_metadata, key_last_written)
       const key_last_written = state.kvs[key].last_written_vc;
       const new_client_vc = max_vc(client_vc, key_last_written);
 
       // If most recent write of key's value was deleting it
       if (state.kvs[key].value == null) {
-        res.status(404).json({ "causal-metadata": {
-          vc: new_client_vc,
-          view_timestamp: state.view_timestamp
-        } });
+        res.status(404).json({
+          "causal-metadata": {
+            vc: new_client_vc,
+            view_timestamp: state.view_timestamp,
+          },
+        });
         return true;
-      } 
+      }
 
       res.status(200).json({
         val: state.kvs[key].value,
         "causal-metadata": {
           vc: new_client_vc,
-          view_timestamp: state.view_timestamp
-        }
+          view_timestamp: state.view_timestamp,
+        },
       });
       return true;
     }
 
     return false;
-  }
+  };
 
   let sent = attempt_send_key();
-  if(sent) { return; }
-  
+  if (sent) {
+    return;
+  }
+
   // stalls, checks every 5s to see if it has updated due to gossip
   // and then tries to resend
   let i = 0;
   const intervalId = setInterval(() => {
-    
     // basically run this method again
     sent = attempt_send_key();
-    
-    if(sent || i >= 3) {
-      
-      if(!sent) {
-        res.status(500).json({ "error": "timed out while waiting for depended updates" });
+
+    if (sent || i >= 3) {
+      if (!sent) {
+        res
+          .status(500)
+          .json({ error: "timed out while waiting for depended updates" });
       }
 
       clearInterval(intervalId);
@@ -198,17 +262,10 @@ router.get("/:key", (req, res) => {
 
     i = i + 1;
   }, 5000);
-
 });
 
 // DELETE endpoint
-router.delete("/:key", (req, res) => {
-  // if we're uninitialized, return 418
-  if (!state.initialized) {
-    res.status(418).json({ error: "uninitialized" });
-    return;
-  }
-
+router.delete("/:key", uninitialized_check, shard_check, (req, res) => {
   const key = req.params.key;
 
   // if causal_metadata wasn't included in the body, send error
@@ -249,20 +306,16 @@ router.delete("/:key", (req, res) => {
   // BROADCAST KVS + T_VC TO ALL OTHER REPLICAS IN VIEW
   broadcast_kvs();
 
-  res.status(response_code).json({ "causal-metadata": {
-    vc: last_written_vc,
-    view_timestamp: state.view_timestamp
-  } });
+  res.status(response_code).json({
+    "causal-metadata": {
+      vc: last_written_vc,
+      view_timestamp: state.view_timestamp,
+    },
+  });
 });
 
 // GET endpoint
-router.get("/", (req, res) => {
-  // if we're uninitialized, return 418
-  if (!state.initialized) {
-    res.status(418).json({ error: "uninitialized" });
-    return;
-  }
-
+router.get("/", uninitialized_check, (req, res) => {
   // if causal_metadata wasn't included in the body, send error
   if (!req.body || !req.body.hasOwnProperty("causal-metadata")) {
     res.status(400).json({ error: "bad request" });
@@ -300,33 +353,39 @@ router.get("/", (req, res) => {
 
       let new_client_vc = max_vc(state.total_vc, client_vc);
 
-      res.status(200).json({ "causal-metadata": {
-        vc: new_client_vc,
-        view_timestamp: state.view_timestamp
-      }, count, keys });
+      res.status(200).json({
+        "causal-metadata": {
+          vc: new_client_vc,
+          view_timestamp: state.view_timestamp,
+        },
+        count,
+        keys,
+      });
 
       return true;
     }
 
     return false;
-  }
+  };
 
   let sent = attempt_send_kvs();
 
-  if(sent) { return; }
+  if (sent) {
+    return;
+  }
 
   // stalls, checks every 5s to see if it has updated due to gossip
   // and then tries to resend
   let i = 0;
   const intervalId = setInterval(() => {
-    
     // basically run this method again
     sent = attempt_send_kvs();
-    
-    if(sent || i >= 3) {
-      
-      if(!sent) {
-        res.status(500).json({ "error": "timed out while waiting for depended updates" });
+
+    if (sent || i >= 3) {
+      if (!sent) {
+        res
+          .status(500)
+          .json({ error: "timed out while waiting for depended updates" });
       }
 
       clearInterval(intervalId);
