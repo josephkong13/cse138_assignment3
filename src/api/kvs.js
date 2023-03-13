@@ -62,15 +62,15 @@ const shard_check = async (req, res, next) => {
       .catch((err) => {
         console.log("ERROR: ", err);
         // if server responded with an error, forward it to client
-        // if (err.response) {
-        //   res.status(err.response.status).json(err.response.data);
-        // }
-        // // if we didn't receive response from upstream (either couldn't connect or timed out)
-        // else {
-        //   res.status(503).json({
-        //     error: "upstream down",
-        //   });
-        // }
+        if (err.response) {
+          res.status(err.response.status).json(err.response.data);
+        }
+        // if we didn't receive response from upstream (either couldn't connect or timed out)
+        else {
+          res.status(503).json({
+            error: "upstream down",
+          });
+        }
       });
     return;
   }

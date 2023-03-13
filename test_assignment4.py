@@ -778,6 +778,54 @@ class TestAssignment1(unittest.TestCase):
 
         # Make sure new replicas in view are caught up <-- this evenetually shouldn't be 404 once we implement request forwarding.
         res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
+        self.assertEqual(res0.status_code, 200);
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
+
+        res0 = get(kvs_data_key_url("hello1", ports[1], hosts[1]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
+
+    def test_sharting_2(self):
+        # initialize the view
+        new_view_addresses = view_addresses;
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            { "num_shards": 1, "nodes": [ new_view_addresses[0] ] }
+        );
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
+
+        res = put(
+            kvs_view_admin_url(ports[1], hosts[1]), 
+            { "num_shards": 1, "nodes": [ new_view_addresses[1] ] }
+        );
+
+        res = put(
+            kvs_data_key_url("hello1", ports[0], hosts[0]),
+            put_val_body("420")
+        )
+        self.assertEqual(res.status_code, 201, 'Bad status code')
+
+        res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
+
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            { "num_shards": 2, "nodes": new_view_addresses[:2] }
+        );
+
+        # Wait for replicas to sync up before changing view
+        time.sleep(5)
+
+        # Make sure new replicas in view are caught up <-- this evenetually shouldn't be 404 once we implement request forwarding.
+        res0 = get(kvs_data_key_url("hello4", ports[0], hosts[0]), causal_metadata_body())
         self.assertEqual(res0.status_code, 404);
 
         res0 = get(kvs_data_key_url("hello1", ports[1], hosts[1]), causal_metadata_body())
