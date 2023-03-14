@@ -362,6 +362,7 @@ class TestAssignment1(unittest.TestCase):
             self.assertLessEqual(body['count'], average_keys * 1.1);
             self.assertGreaterEqual(body['count'], average_keys * 0.9);
 
+    # get data, reshard, get same data with causal metadata
     def test_key_distribution_on_reshard_2(self):
         new_view_addresses = view_addresses;
         res = put(
@@ -381,6 +382,14 @@ class TestAssignment1(unittest.TestCase):
 
         time.sleep(3)
 
+        # Test the causal metadata isn't zero
+        res = get(kvs_data_key_url("key99", ports[0], hosts[0]), causal_metadata_body())
+        self.assertEqual(res.status_code, 200, 'Bad status code');
+        body = res.json();
+        cm = body['causal-metadata'];
+        self.assertEqual(cm['vc']['10.10.0.4:8080'], 23, 'Bad causal metadata value');
+        
+
         # see how many keys in each shard
         for i in range(4):
             res = get(kvs_data_url(ports[i], hosts[i]), causal_metadata_body({}))
@@ -397,7 +406,18 @@ class TestAssignment1(unittest.TestCase):
             { "num_shards": 3, "nodes": new_view_addresses[:3] }
         );
 
-        time.sleep(3)
+        time.sleep(3);
+
+        # Now the causal metadata for the same key should be zero, 
+        # and we should be able to use the causal metadata from the last time we got the key
+        res = get(kvs_data_key_url("key99", ports[0], hosts[0]), causal_metadata_body(cm))
+        self.assertEqual(res.status_code, 200, 'Bad status code');
+        body = res.json();
+        cm = body['causal-metadata'];
+        self.assertEqual(cm['vc']['10.10.0.2:8080'], 0, 'Bad causal metadata value');
+        self.assertEqual(cm['vc']['10.10.0.3:8080'], 0, 'Bad causal metadata value');
+        self.assertEqual(cm['vc']['10.10.0.4:8080'], 0, 'Bad causal metadata value');
+
 
         # see how many keys in each shard
         for i in range(3):
