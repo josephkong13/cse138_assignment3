@@ -41,7 +41,7 @@ function reshard_key_distribution(num_shards, sharded_kvs) {
     // send to respective shards
     const ips = state.view[i].nodes;
     ips.forEach((address) => {
-      if (address == state.address) return;
+      if (address == full_address) return;
   
       axios({
         url: `http://${address}/kvs/gossip`,

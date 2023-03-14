@@ -46,15 +46,6 @@ const shard_check = async (req, res, next) => {
     const shard_nodes = state.view[shard_num - 1].nodes;
     // either, delete, put or get
     const method = req.method;
-    const requests = shard_nodes.map((ip) =>
-      axios({
-        url: `http://${ip}/kvs/data/${key}`,
-        method: "put",
-        data: req.body,
-        timeout: 5000, // 5 seconds
-        headers: { "X-HTTP-Method-Override": method },
-      })
-    );
 
     let responded = false;
 
@@ -63,6 +54,19 @@ const shard_check = async (req, res, next) => {
     // try this 4 times, for a total of 20 seconds
     for (let i = 0; i < 4; i++) {
       if (!responded) {
+
+        // generate requests every time
+        // Promise.race() cannot re-use the same array more than once
+        const requests = shard_nodes.map((ip) =>
+          axios({
+            url: `http://${ip}/kvs/data/${key}`,
+            method: "put",
+            data: req.body,
+            timeout: 5000, // 5 seconds
+            headers: { "X-HTTP-Method-Override": method },
+          })
+        );
+
         await Promise.race(requests)
         .then((upstream_res) => {
           res.status(upstream_res.status).json(upstream_res.data);
