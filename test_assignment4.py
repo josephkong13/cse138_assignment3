@@ -131,220 +131,220 @@ class TestAssignment1(unittest.TestCase):
             # delete(partition_url(p, h))
             delete(kvs_view_admin_url(p, h))
 
-    # def test_resharting(self):
-    #     # initialize the view
-    #     new_view_addresses = view_addresses;
-    #     res = put(
-    #         kvs_view_admin_url(ports[0], hosts[0]), 
-    #         { "num_shards": 1, "nodes": [ new_view_addresses[0] ] }
-    #     );
-    #     self.assertEqual(res.status_code, 200, msg='Bad status code')
+    def test_resharting(self):
+        # initialize the view
+        new_view_addresses = view_addresses;
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            { "num_shards": 1, "nodes": [ new_view_addresses[0] ] }
+        );
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
 
-    #     res = put(
-    #         kvs_view_admin_url(ports[1], hosts[1]), 
-    #         { "num_shards": 1, "nodes": [ new_view_addresses[1] ] }
-    #     );
+        res = put(
+            kvs_view_admin_url(ports[1], hosts[1]), 
+            { "num_shards": 1, "nodes": [ new_view_addresses[1] ] }
+        );
 
-    #     res = put(
-    #         kvs_data_key_url("hello1", ports[0], hosts[0]),
-    #         put_val_body("420")
-    #     )
-    #     self.assertEqual(res.status_code, 201, 'Bad status code')
+        res = put(
+            kvs_data_key_url("hello1", ports[0], hosts[0]),
+            put_val_body("420")
+        )
+        self.assertEqual(res.status_code, 201, 'Bad status code')
 
-    #     res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
-    #     body0 = res0.json();
-    #     self.assertIn('val', body0, 'No value')
-    #     val0 = body0['val']
-    #     self.assertEqual(val0, "420");
+        res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
 
-    #     res = put(
-    #         kvs_view_admin_url(ports[0], hosts[0]), 
-    #         { "num_shards": 2, "nodes": new_view_addresses[:2] }
-    #     );
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            { "num_shards": 2, "nodes": new_view_addresses[:2] }
+        );
 
-    #     # Wait for replicas to sync up before changing view
-    #     time.sleep(5)
+        # Wait for replicas to sync up before changing view
+        time.sleep(5)
 
-    #     # Make sure
-    #     res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
-    #     self.assertEqual(res0.status_code, 200);
-    #     body0 = res0.json();
-    #     self.assertIn('val', body0, 'No value')
-    #     val0 = body0['val']
-    #     self.assertEqual(val0, "420");
+        # Make sure
+        res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
+        self.assertEqual(res0.status_code, 200);
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
 
-    #     res0 = get(kvs_data_key_url("hello1", ports[1], hosts[1]), causal_metadata_body())
-    #     body0 = res0.json();
-    #     self.assertIn('val', body0, 'No value')
-    #     val0 = body0['val']
-    #     self.assertEqual(val0, "420");
+        res0 = get(kvs_data_key_url("hello1", ports[1], hosts[1]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
 
-    # def test_resharting_2(self):
-    #     # initialize the view
-    #     new_view_addresses = view_addresses;
-    #     res = put(
-    #         kvs_view_admin_url(ports[0], hosts[0]), 
-    #         { "num_shards": 1, "nodes": [ new_view_addresses[0] ] }
-    #     );
-    #     self.assertEqual(res.status_code, 200, msg='Bad status code')
+    def test_resharting_2(self):
+        # initialize the view
+        new_view_addresses = view_addresses;
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            { "num_shards": 1, "nodes": [ new_view_addresses[0] ] }
+        );
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
 
-    #     res = put(
-    #         kvs_view_admin_url(ports[1], hosts[1]), 
-    #         { "num_shards": 1, "nodes": [ new_view_addresses[1] ] }
-    #     );
+        res = put(
+            kvs_view_admin_url(ports[1], hosts[1]), 
+            { "num_shards": 1, "nodes": [ new_view_addresses[1] ] }
+        );
 
-    #     # this should go to shard 2 after reshard
-    #     res = put(
-    #         kvs_data_key_url("hello1", ports[0], hosts[0]),
-    #         put_val_body("420")
-    #     )
-    #     self.assertEqual(res.status_code, 201, 'Bad status code')
+        # this should go to shard 2 after reshard
+        res = put(
+            kvs_data_key_url("hello1", ports[0], hosts[0]),
+            put_val_body("420")
+        )
+        self.assertEqual(res.status_code, 201, 'Bad status code')
 
-    #     # this should go to shard 1 after reshard
-    #     res = put(
-    #         kvs_data_key_url("hello2", ports[1], hosts[1]),
-    #         put_val_body("69")
-    #     )
-    #     self.assertEqual(res.status_code, 201, 'Bad status code')
+        # this should go to shard 1 after reshard
+        res = put(
+            kvs_data_key_url("hello2", ports[1], hosts[1]),
+            put_val_body("69")
+        )
+        self.assertEqual(res.status_code, 201, 'Bad status code')
 
-    #     # re-shard
-    #     res = put(
-    #         kvs_view_admin_url(ports[0], hosts[0]), 
-    #         { "num_shards": 2, "nodes": new_view_addresses[:2] }
-    #     );
+        # re-shard
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            { "num_shards": 2, "nodes": new_view_addresses[:2] }
+        );
 
-    #     # Wait for replicas to sync up before changing view
-    #     time.sleep(5)
+        # Wait for replicas to sync up before changing view
+        time.sleep(5)
 
-    #     # Make partition to disable request forwarding
-    #     create_partition()
+        # Make partition to disable request forwarding
+        create_partition()
 
-    #     time.sleep(2)
+        time.sleep(2)
 
-    #     # Check that keys got moved correctly
-    #     res0 = get(kvs_data_key_url("hello1", ports[1], hosts[1]), causal_metadata_body())
-    #     body0 = res0.json();
-    #     self.assertIn('val', body0, 'No value')
-    #     val0 = body0['val']
-    #     self.assertEqual(val0, "420");
+        # Check that keys got moved correctly
+        res0 = get(kvs_data_key_url("hello1", ports[1], hosts[1]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
 
-    #     res0 = get(kvs_data_key_url("hello2", ports[0], hosts[0]), causal_metadata_body())
-    #     body0 = res0.json();
-    #     self.assertIn('val', body0, 'No value')
-    #     val0 = body0['val']
-    #     self.assertEqual(val0, "69");
+        res0 = get(kvs_data_key_url("hello2", ports[0], hosts[0]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "69");
 
-    #     # Test that shard forwarding was disabled
-    #     res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
-    #     self.assertEqual(res0.status_code, 503, 'Bad status code')
+        # Test that shard forwarding was disabled
+        res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
+        self.assertEqual(res0.status_code, 503, 'Bad status code')
 
-    #     remove_partition()
+        remove_partition()
 
-    #     time.sleep(5)
+        time.sleep(5)
 
-    #     # Test that shard forwarding works again
-    #     res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
-    #     body0 = res0.json();
-    #     self.assertIn('val', body0, 'No value')
-    #     val0 = body0['val']
-    #     self.assertEqual(val0, "420");
+        # Test that shard forwarding works again
+        res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
 
-    # def test_shard_forwarding(self):
-    #     # initialize the view
-    #     new_view_addresses = view_addresses;
-    #     res = put(
-    #         kvs_view_admin_url(ports[0], hosts[0]), 
-    #         { "num_shards": 1, "nodes": [ new_view_addresses[0] ] }
-    #     );
-    #     self.assertEqual(res.status_code, 200, msg='Bad status code')
+    def test_shard_forwarding(self):
+        # initialize the view
+        new_view_addresses = view_addresses;
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            { "num_shards": 1, "nodes": [ new_view_addresses[0] ] }
+        );
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
 
-    #     res = put(
-    #         kvs_view_admin_url(ports[1], hosts[1]), 
-    #         { "num_shards": 1, "nodes": [ new_view_addresses[1] ] }
-    #     );
+        res = put(
+            kvs_view_admin_url(ports[1], hosts[1]), 
+            { "num_shards": 1, "nodes": [ new_view_addresses[1] ] }
+        );
 
-    #     res = put(
-    #         kvs_data_key_url("hello1", ports[0], hosts[0]),
-    #         put_val_body("420")
-    #     )
-    #     self.assertEqual(res.status_code, 201, 'Bad status code')
+        res = put(
+            kvs_data_key_url("hello1", ports[0], hosts[0]),
+            put_val_body("420")
+        )
+        self.assertEqual(res.status_code, 201, 'Bad status code')
 
-    #     res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
-    #     body0 = res0.json();
-    #     self.assertIn('val', body0, 'No value')
-    #     val0 = body0['val']
-    #     self.assertEqual(val0, "420");
+        res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
 
-    #     res = put(
-    #         kvs_view_admin_url(ports[0], hosts[0]), 
-    #         { "num_shards": 2, "nodes": new_view_addresses[:2] }
-    #     );
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            { "num_shards": 2, "nodes": new_view_addresses[:2] }
+        );
 
-    #     # Wait for replicas to sync up before changing view
-    #     time.sleep(5)
+        # Wait for replicas to sync up before changing view
+        time.sleep(5)
 
-    #     create_partition()
+        create_partition()
 
-    #     time.sleep(2)
+        time.sleep(2)
 
-    #     res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
-    #     self.assertEqual(res0.status_code, 503);
-    #     # print(res0.json())
+        res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
+        self.assertEqual(res0.status_code, 503);
+        # print(res0.json())
 
-    #     remove_partition()
+        remove_partition()
 
-    #     time.sleep(5)
+        time.sleep(5)
 
-    #     res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
-    #     body0 = res0.json();
-    #     self.assertIn('val', body0, 'No value')
-    #     val0 = body0['val']
-    #     self.assertEqual(val0, "420");
+        res0 = get(kvs_data_key_url("hello1", ports[0], hosts[0]), causal_metadata_body())
+        body0 = res0.json();
+        self.assertIn('val', body0, 'No value')
+        val0 = body0['val']
+        self.assertEqual(val0, "420");
 
 
-    # def test_key_distribution_on_reshard_1(self):
-    #     new_view_addresses = view_addresses;
-    #     res = put(
-    #         kvs_view_admin_url(ports[0], hosts[0]), 
-    #         { "num_shards": 3, "nodes": new_view_addresses[:3] }
-    #     );
+    def test_key_distribution_on_reshard_1(self):
+        new_view_addresses = view_addresses;
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            { "num_shards": 3, "nodes": new_view_addresses[:3] }
+        );
 
-    #     num_keys = 10000
+        num_keys = 10000
 
-    #     # send 10000 keys to shards 1 and 2, we'll expect some to be forwarded to shard 3
-    #     for i in range(num_keys):
-    #         res = put(
-    #             kvs_data_key_url("key"+str(i), ports[i%2], hosts[i%2]),
-    #             put_val_body("val"+str(i))
-    #         )
-    #         self.assertEqual(res.status_code, 201, 'Bad status code')
+        # send 10000 keys to shards 1 and 2, we'll expect some to be forwarded to shard 3
+        for i in range(num_keys):
+            res = put(
+                kvs_data_key_url("key"+str(i), ports[i%2], hosts[i%2]),
+                put_val_body("val"+str(i))
+            )
+            self.assertEqual(res.status_code, 201, 'Bad status code')
 
-    #     time.sleep(3)
+        time.sleep(3)
 
-    #     # see how many keys in each shard
-    #     for i in range(3):
-    #         res = get(kvs_data_url(ports[i], hosts[i]), causal_metadata_body({}))
-    #         self.assertEqual(res.status_code, 200, 'Bad status code') # causing error
-    #         body = res.json()
-    #         self.assertIn('count', body,
-    #                     msg='Key not found in json response')
-    #         print(body['count'])
+        # see how many keys in each shard
+        for i in range(3):
+            res = get(kvs_data_url(ports[i], hosts[i]), causal_metadata_body({}))
+            self.assertEqual(res.status_code, 200, 'Bad status code') # causing error
+            body = res.json()
+            self.assertIn('count', body,
+                        msg='Key not found in json response')
+            print(body['count'])
 
-    #     res = put(
-    #         kvs_view_admin_url(ports[0], hosts[0]), 
-    #         { "num_shards": 4, "nodes": new_view_addresses }
-    #     );
+        res = put(
+            kvs_view_admin_url(ports[0], hosts[0]), 
+            { "num_shards": 4, "nodes": new_view_addresses }
+        );
 
-    #     time.sleep(3)
+        time.sleep(3)
 
-    #     # see how many keys in each shard
-    #     for i in range(4):
-    #         res = get(kvs_data_url(ports[i], hosts[i]), causal_metadata_body({}))
-    #         self.assertEqual(res.status_code, 200, 'Bad status code') # causing error
-    #         body = res.json()
-    #         self.assertIn('count', body,
-    #                     msg='Key not found in json response')
-    #         print(body['count'])
+        # see how many keys in each shard
+        for i in range(4):
+            res = get(kvs_data_url(ports[i], hosts[i]), causal_metadata_body({}))
+            self.assertEqual(res.status_code, 200, 'Bad status code') # causing error
+            body = res.json()
+            self.assertIn('count', body,
+                        msg='Key not found in json response')
+            print(body['count'])
 
     def test_key_distribution_on_reshard_2(self):
         new_view_addresses = view_addresses;
