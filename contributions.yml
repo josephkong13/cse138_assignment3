@@ -1,4 +1,4 @@
-- anassadi: 'VC helper functions, Data operations'
-- bgluu: 'View change operations, testing'
-- dwilby: 'Data operations, testing'
-- jkong13: 'Data operations, gossip'
+- anassadi: "VC helper functions, Data operations, forwarding, consistent hashing"
+- bgluu: "View change operations, testing, consistent hashing"
+- dwilby: "Data operations, testing, shard functions, consistent hashing"
+- jkong13: "Data operations, gossip, testing, causally consistent model, consistent hashing"
