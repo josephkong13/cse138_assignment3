@@ -8,6 +8,7 @@ const {
   nodes_to_shards,
   reshard_kvs,
 } = require("../utils/shard_functions");
+const { reshard_key_distribution } = require("../api/gossip");
 
 // View change endpoints
 router.put("/", (req, res) => {
@@ -73,15 +74,21 @@ router.put("/", (req, res) => {
     state.kvs[key].last_written_vc = {};
   }
 
-  old_nodes.forEach((address) => {
-    // Reset any node in the old view that isn't in the new view
-    if (!state.nodes.includes(address)) {
-      axios({
-        url: `http://${address}/kvs/admin/view`,
-        method: "delete",
-      }).catch((err) => {});
-    }
-  });
+  // old_nodes.forEach((address) => {
+  //   // Reset any node in the old view that isn't in the new view
+  //   if (!state.nodes.includes(address)) {
+  //     axios({
+  //       url: `http://${address}/kvs/admin/view`,
+  //       method: "put",
+  //       data: {
+  //         view: state.view,
+  //         num_shards: req.body.num_shards,
+  //         view_timestamp: state.view_timestamp
+  //       },
+  //       headers: { "X-HTTP-Method-Override": "DELETE" },
+  //     }).catch((err) => {});
+  //   }
+  // });
 
   // Broadcast endpoint to all replica in the cluster except us
   /* TODO: Reset all last written timers to zero */
@@ -108,25 +115,26 @@ router.put("/", (req, res) => {
 
   const shart = reshard_kvs(req.body.num_shards);
 
-  for (let i = 0; i < req.body.num_shards; i++) {
-    // send to respective
-    const ips = state.view[i].nodes;
-    ips.forEach((address) => {
-      if (address == state.address) return;
-
-      axios({
-        url: `http://${address}/kvs/gossip`,
-        method: "put",
-        data: {
-          kvs: shart[i],
-          total_vc: state.total_vc,
-          view_timestamp: state.view_timestamp,
-        },
-      }).catch((err) => {});
-    });
-  }
+  reshard_key_distribution(req.body.num_shards, shart);
 
   state.kvs = shart[state.shard_number - 1];
+
+  old_nodes.forEach((address) => {
+    // Reset any node in the old view that isn't in the new view
+    if (!state.nodes.includes(address)) {
+      axios({
+        url: `http://${address}/kvs/admin/view`,
+        method: "put",
+        data: {
+          view: state.view,
+          num_shards: req.body.num_shards,
+          view_timestamp: state.view_timestamp,
+          total_vc: state.total_vc
+        },
+        headers: { "X-HTTP-Method-Override": "DELETE" },
+      }).catch((err) => {});
+    }
+  });
 
   state.initialized = true;
   res.status(200).send();
@@ -138,6 +146,22 @@ router.get("/", (req, res) => {
 
 router.delete("/", (req, res) => {
   if (state.initialized) {
+
+    // if we need to send our keys because our shard got deleted, send them.
+    if (req.body.hasOwnProperty("view") && req.body.hasOwnProperty("view_timestamp")) {
+      state.view = req.body.view;
+      state.view_timestamp = req.body.view_timestamp;
+      state.total_vc = req.body.total_vc;
+
+      state.hashed_vshards_ordered = generate_hashed_vshards_ordered(
+        req.body.num_shards
+      );
+    
+      const shart = reshard_kvs(req.body.num_shards);
+    
+      reshard_key_distribution(req.body.num_shards, shart);
+    }
+
     state.initialized = false;
     state.nodes = [];
     state.view = [];

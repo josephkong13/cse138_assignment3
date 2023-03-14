@@ -30,7 +30,8 @@ app.use(function (req, res, next) {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({limit: '50mb'}));
+app.use(express.urlencoded({limit: '50mb'}));
 /* Use the view change routes */
 app.use("/kvs/admin/view", viewchange);
 app.use("/kvs/data", kvs);

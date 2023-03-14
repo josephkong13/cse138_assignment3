@@ -40,6 +40,7 @@ const shard_check = async (req, res, next) => {
   const key = req.params.key;
   const hashed_key = hash(key);
   const [_, shard_num] = hash_search(state.hashed_vshards_ordered, hashed_key);
+  // if our shard is not responsible for this key, forward it to all the IPs in the shard actually responsible.
   if (shard_num != state.shard_number) {
     // We must stall and forward the request to the IPs that have this shard_num
     const shard_nodes = state.view[shard_num - 1].nodes;
@@ -50,31 +51,43 @@ const shard_check = async (req, res, next) => {
         url: `http://${ip}/kvs/data/${key}`,
         method: "put",
         data: req.body,
-        timeout: 20000,
+        timeout: 5000, // 5 seconds
         headers: { "X-HTTP-Method-Override": method },
       })
     );
 
-    await Promise.race(requests)
-      .then((upstream_res) => {
-        res.status(upstream_res.status).json(upstream_res.data);
-      })
-      .catch((err) => {
-        // if server responded with an error, forward it to client
-        if (err.response) {
-          res.status(err.response.status).json(err.response.data);
-        }
-        // if we didn't receive response from upstream (either couldn't connect or timed out)
-        else {
-          res.status(503).json({
-            error: "upstream down",
-            upstream: {
-              shard_id: `${shard_num}`,
-              nodes: state.view[shard_num - 1].nodes
-            }
-          });
+    let responded = false;
+
+    // every 5 seconds, forward the request to all IPs in the shard
+    // return the first response we get back from the shard
+    // try this 4 times, for a total of 20 seconds
+    for (let i = 0; i < 4; i++) {
+      if (!responded) {
+        await Promise.race(requests)
+        .then((upstream_res) => {
+          res.status(upstream_res.status).json(upstream_res.data);
+          responded = true;
+        })
+        .catch((err) => {
+          // if server responded with an error, forward it to client
+          if (err.response) {
+            res.status(err.response.status).json(err.response.data);
+            responded = true;
+          }
+        });
+      }
+    }
+
+    // if all the forwarding attempts failed, return 503.
+    if (!responded) {
+      res.status(503).json({
+        error: "upstream down",
+        upstream: {
+          shard_id: `${shard_num}`,
+          nodes: state.view[shard_num - 1].nodes
         }
       });
+    }
     return;
   }
   next();

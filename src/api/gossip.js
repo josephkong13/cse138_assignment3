@@ -5,7 +5,8 @@ const state = require("../state");
 const axios = require("axios");
 const { full_address } = require("../address");
 
-// add a function for other_stuff too
+
+// broadcast our kvs to everyone in our shard
 const broadcast_kvs = function () {
 
   if(state.shard_number < 1)
@@ -33,6 +34,26 @@ function continuous_broadcast() {
   }
 
   setTimeout(continuous_broadcast, 500);
+}
+
+function reshard_key_distribution(num_shards, sharded_kvs) {
+  for (let i = 0; i < num_shards; i++) {
+    // send to respective shards
+    const ips = state.view[i].nodes;
+    ips.forEach((address) => {
+      if (address == state.address) return;
+  
+      axios({
+        url: `http://${address}/kvs/gossip`,
+        method: "put",
+        data: {
+          kvs: sharded_kvs[i],
+          total_vc: state.total_vc,
+          view_timestamp: state.view_timestamp,
+        },
+      }).catch((err) => {});
+    });
+  }
 }
 
 // PUT endpoint
@@ -71,4 +92,4 @@ gossip.get("/", (req, res) => {
 
 continuous_broadcast();
 
-module.exports = { gossip, broadcast_kvs };
+module.exports = { gossip, broadcast_kvs, reshard_key_distribution };
