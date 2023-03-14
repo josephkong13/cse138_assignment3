@@ -74,22 +74,6 @@ router.put("/", (req, res) => {
     state.kvs[key].last_written_vc = {};
   }
 
-  // old_nodes.forEach((address) => {
-  //   // Reset any node in the old view that isn't in the new view
-  //   if (!state.nodes.includes(address)) {
-  //     axios({
-  //       url: `http://${address}/kvs/admin/view`,
-  //       method: "put",
-  //       data: {
-  //         view: state.view,
-  //         num_shards: req.body.num_shards,
-  //         view_timestamp: state.view_timestamp
-  //       },
-  //       headers: { "X-HTTP-Method-Override": "DELETE" },
-  //     }).catch((err) => {});
-  //   }
-  // });
-
   // Broadcast endpoint to all replica in the cluster except us
   /* TODO: Reset all last written timers to zero */
   state.nodes.forEach((address) => {
