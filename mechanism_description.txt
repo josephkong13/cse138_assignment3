@@ -1,8 +1,11 @@
 Causal dependency tracking:
 
-    - Each replica keep track of the number of writes each replica in its shard has done that they are aware of in a vector clock. We call this the replica's total_vc.
+    - Each replica keep track of the number of writes each replica in its own shard has done that they are aware of in a vector clock. We call this the replica's total_vc.
+
+    - For each key, each replica keeps track of the number of writes each replica (across ALL shards) has done that the key is causally dependent on
 
     - Any write/read a client does includes their causal_metadata, the initial one being an empty object.
+        - The causal_metadata is a vector clock of all writes from all nodes (across ALL shards) that the client is causally aware of
 
     - When a client writes (PUT/DELETE) a key-value pair (k, v), the replica that receives their request increments their IP in the total_vc.
         - The replica then writes the k, v into it's kvs and returns the element-wise max of their total_vc and the client's causal metadata, called last_written_vc.
@@ -47,9 +50,13 @@ Sharding:
         - Send out keys on our shard to their proper shards 
         - Delete any nodes that are no longer in our view
 
-    - When a reshard operation is done, all vector clocks are reset to zero
+    - When a reshard operation is done, all vector clocks (total_vc, and last_written_vc for all keys) are reset to zero
 
     - Deleting a node also triggers a reshard operation that broadcasts that shard's kvs to its respective destination(s)
+
+    - When a replica receives a request for a key, it uses its list of virtual nodes (in state) and the key's hash to determine which shard is responsible for that key
+        - If the replica is in the shard responsible for the key, it procedes as normal.
+        - If some other shard is responsible, it forwards the request to all nodes in that shard, returning the first response it gets back
 
 
 We did not implement any mechanisms to detect whether a replica is down.
