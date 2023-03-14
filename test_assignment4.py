@@ -14,11 +14,21 @@ import unittest
 import requests  # pip install requests
 import subprocess
 
-def create_partition():
-    subprocess.call(['bash', './make_partition.sh', '1', '2', '3', '4'])
-    subprocess.call(['bash', './make_partition.sh', '2', '1', '3', '4'])
-    subprocess.call(['bash', './make_partition.sh', '3', '1', '2', '4'])
-    subprocess.call(['bash', './make_partition.sh', '4', '1', '2', '3'])
+def create_partition(node_count, partition_list):
+
+    # arg like: [[1, 2], [3, 4]]
+    # creates two partitions with nodes 1 and 2, and one with nodes 3 and 4.
+
+    for partition in partition_list:
+        for node in partition:
+            args = ['bash', './make_partition.sh', str(node)]
+            for node_to_partition in range(1, node_count+1):
+
+                # partition away the node if it's not in our partition
+                if node_to_partition not in partition:
+                    args.append(str(node_to_partition))
+
+            subprocess.call(args)
 
 def remove_partition():
     subprocess.call(['bash', './remove_partition.sh'])
@@ -53,7 +63,7 @@ def parse_args():
 
 ports, view_addresses = parse_args()
 hosts = ['localhost'] * len(ports)
-keys = ['key1', 'key2', 'key3']
+keys = ['hello1', 'hello2', 'key3']
 vals = ['Value 1', 'val2', 'third_value']
 causal_metadata_key = 'causal-metadata'
 
@@ -217,7 +227,7 @@ class TestAssignment1(unittest.TestCase):
         time.sleep(5)
 
         # Make partition to disable request forwarding
-        create_partition()
+        create_partition(2, [[1], [2]])
 
         time.sleep(2)
 
@@ -283,7 +293,7 @@ class TestAssignment1(unittest.TestCase):
         # Wait for replicas to sync up before changing view
         time.sleep(5)
 
-        create_partition()
+        create_partition(2, [[1], [2]])
 
         time.sleep(2)
 
@@ -309,9 +319,9 @@ class TestAssignment1(unittest.TestCase):
             { "num_shards": 3, "nodes": new_view_addresses[:3] }
         );
 
-        num_keys = 10000
+        num_keys = 1000
 
-        # send 10000 keys to shards 1 and 2, we'll expect some to be forwarded to shard 3
+        # send 1000 keys to shards 1 and 2, we'll expect some to be forwarded to shard 3
         for i in range(num_keys):
             res = put(
                 kvs_data_key_url("key"+str(i), ports[i%2], hosts[i%2]),
@@ -328,11 +338,14 @@ class TestAssignment1(unittest.TestCase):
             body = res.json()
             self.assertIn('count', body,
                         msg='Key not found in json response')
-            print(body['count'])
+            # print(body['count'])
+            average_keys = num_keys / 3
+            self.assertLessEqual(body['count'], average_keys * 1.1);
+            self.assertGreaterEqual(body['count'], average_keys * 0.9);
 
         res = put(
             kvs_view_admin_url(ports[0], hosts[0]), 
-            { "num_shards": 4, "nodes": new_view_addresses }
+            { "num_shards": 4, "nodes": new_view_addresses[:4] }
         );
 
         time.sleep(3)
@@ -344,18 +357,21 @@ class TestAssignment1(unittest.TestCase):
             body = res.json()
             self.assertIn('count', body,
                         msg='Key not found in json response')
-            print(body['count'])
+            # print(body['count'])
+            average_keys = num_keys / 4
+            self.assertLessEqual(body['count'], average_keys * 1.1);
+            self.assertGreaterEqual(body['count'], average_keys * 0.9);
 
     def test_key_distribution_on_reshard_2(self):
         new_view_addresses = view_addresses;
         res = put(
             kvs_view_admin_url(ports[0], hosts[0]), 
-            { "num_shards": 4, "nodes": new_view_addresses }
+            { "num_shards": 4, "nodes": new_view_addresses[:4] }
         );
 
-        num_keys = 10000
+        num_keys = 1000
 
-        # send 10000 keys to shards 1 and 2, we'll expect some to be forwarded to shard 3
+        # send 1000 keys to shards 1 and 2, we'll expect some to be forwarded to shard 3
         for i in range(num_keys):
             res = put(
                 kvs_data_key_url("key"+str(i), ports[i%3], hosts[i%3]),
@@ -372,7 +388,9 @@ class TestAssignment1(unittest.TestCase):
             body = res.json()
             self.assertIn('count', body,
                         msg='Key not found in json response')
-            print(body['count'])
+            average_keys = num_keys / 4
+            self.assertLessEqual(body['count'], average_keys * 1.1);
+            self.assertGreaterEqual(body['count'], average_keys * 0.9);
 
         res = put(
             kvs_view_admin_url(ports[0], hosts[0]), 
@@ -388,7 +406,106 @@ class TestAssignment1(unittest.TestCase):
             body = res.json()
             self.assertIn('count', body,
                         msg='Key not found in json response')
-            print(body['count'])
+            average_keys = num_keys / 3
+            self.assertLessEqual(body['count'], average_keys * 1.1);
+            self.assertGreaterEqual(body['count'], average_keys * 0.9);
+
+    def test_uninitialized_get_view(self):
+        for h, p in zip(hosts, ports):
+            with self.subTest(host=h, port=p):
+                res = get(kvs_view_admin_url(p, h))
+                self.assertEqual(res.status_code, 200, msg='Bad status code')
+                body = res.json()
+                self.assertIn('view', body,
+                              msg='Key not found in json response')
+                self.assertEqual(body['view'], [], msg='Bad view')
+
+    def test_put_get_view(self):
+        for h, p in zip(hosts, ports):
+            with self.subTest(host=h, port=p, verb='put'):
+                res = put(
+                    kvs_view_admin_url(p, h), 
+                    { "num_shards": len(view_addresses), "nodes": view_addresses }
+                );
+                self.assertEqual(res.status_code, 200, msg='Bad status code')
+
+        view = []
+        i = 1
+
+        for address in view_addresses:
+            view.append({"shard_id": str(i), "nodes": [ str(address)] })
+            i += 1
+
+        for h, p in zip(hosts, ports):
+            with self.subTest(host=h, port=p, verb='get'):
+                res = get(kvs_view_admin_url(p, h))
+                self.assertEqual(res.status_code, 200, msg='Bad status code')
+                body = res.json()
+                self.assertIn('view', body,
+                              msg='Key not found in json response')
+                self.assertEqual(body['view'], view,
+                                 msg='Bad view')
+
+    def test_spec_ex2(self):
+        res = put(kvs_view_admin_url(ports[0], hosts[0]),
+                  { "num_shards": 2, "nodes": view_addresses })
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
+
+        time.sleep(1)
+
+        res = put(kvs_data_key_url(keys[0], ports[1], hosts[1]),
+                  put_val_body(vals[0]))
+        self.assertEqual(res.status_code, 201, msg='Bad status code')
+        body = res.json()
+        self.assertIn(causal_metadata_key, body,
+                      msg='Key not found in json response')
+        cm1 = causal_metadata_from_body(body)
+
+        res = put(kvs_data_key_url(keys[0], ports[0], hosts[0]),
+                  put_val_body(vals[1], cm1))
+        self.assertIn(res.status_code, {200, 201}, msg='Bad status code')
+        body = res.json()
+        self.assertIn(causal_metadata_key, body,
+                      msg='Key not found in json response')
+        cm1 = causal_metadata_from_body(body)
+
+        res = put(kvs_data_key_url(keys[1], ports[1], hosts[1]),
+                  put_val_body(vals[0], cm1))
+        self.assertEqual(res.status_code, 201, msg='Bad status code')
+        body = res.json()
+        self.assertIn(causal_metadata_key, body,
+                      msg='Key not found in json response')
+        cm1 = causal_metadata_from_body(body)
+
+        res = get(kvs_data_key_url(keys[1], ports[1], hosts[1]),
+                  causal_metadata_body())
+        self.assertEqual(res.status_code, 200, msg='Bad status code')
+        body = res.json()
+        self.assertIn(causal_metadata_key, body,
+                      msg='Key not found in json response')
+        cm2 = causal_metadata_from_body(body)
+        self.assertIn('val', body, msg='Key not found in json response')
+        self.assertEqual(body['val'], vals[0], 'Bad value')
+
+        res = get(kvs_data_key_url(keys[0], ports[1], hosts[1]),
+                  causal_metadata_body(cm2))
+        self.assertIn(res.status_code, {200}, msg='Bad status code')
+        body = res.json()
+        self.assertIn(causal_metadata_key, body,
+                      msg='Key not found in json response')
+        cm2 = causal_metadata_from_body(body)
+
+        if res.status_code == 200:
+            self.assertIn('val', body, msg='Key not found in json response')
+            self.assertEqual(body['val'], vals[1], 'Bad value')
+            return
+
+        # # 500
+        # self.assertIn('error', body, msg='Key not found in json response')
+        # self.assertEqual(body['error'], 'timed out while waiting for depended updates',
+        #                  msg='Bad error message')
+    
+
 
 if __name__ == '__main__':
     unittest.main(argv=['first-arg-is-ignored'], exit=False)
