@@ -6,7 +6,7 @@ This project is a distributed, sharded, fault-tolerant key-value store which pro
 
 - Create a docker subnet: `sudo docker network create --subnet=10.10.0.0/16 kv_subnet` 
 
-- Build docker image: `sudo docker build -t kvs:2.0 ../ --network="host"`
+- Build docker image: `sudo docker build -t kvs:2.0 ./ --network="host"`
 
 - Create however many replicas you wish: <pre>sudo docker run \
   -d \
